@@ -1,0 +1,1403 @@
+﻿using AForge.Video.DirectShow;
+using log4net;
+using Microsoft.VisualBasic.Logging;
+using Org.BouncyCastle.Crypto.Paddings;
+using RAR.IdCard.Sdk.Reader;
+using RAR.IdCard.Sdk.Reader.HN212;
+using System.Diagnostics;
+using System.Drawing.Imaging;
+using System.Globalization;
+using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Windows.Forms;
+using Timer = System.Windows.Forms.Timer;
+
+namespace IdCard.Hanel
+{
+    public partial class MainForm : Form
+    {
+        // VnPcscReader _reader = new VnPcscReader();
+        VnHn212Reader _reader = new VnHn212Reader();
+        Timer _timer = new Timer();
+        Stopwatch _stw = new Stopwatch();
+        readonly AppSettings _settings = AppSettings.Load();
+        static readonly HttpClient _http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+        int? _lastMatchScore;
+        // Dữ liệu thẻ của lần đọc thành công gần nhất, null khi chưa đọc hoặc đã xoá form
+        CardFullData? _cardData;
+        string _readerSerial = "";
+        // Thẻ đang nằm trong đầu đọc (theo sự kiện cắm/rút thẻ)
+        bool _cardPresent;
+        byte[]? _ocrFrontBts;
+        byte[]? _ocrBackBts;
+        // Vân tay đã thu: mã ngón (1-10) -> ảnh
+        Dictionary<int, byte[]> _fingers = new();
+        byte[]? _ChipFaceBts = null;
+        byte[]? _CamFaceBts = null;
+        // Kết quả so khớp hiển thị đè lên ảnh chụp
+        readonly Label lblMatchResult = new Label
+        {
+            Dock = DockStyle.Bottom,
+            Height = 32,
+            TextAlign = ContentAlignment.MiddleCenter,
+            Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+            ForeColor = Color.White,
+            Cursor = Cursors.Hand,
+            Visible = false
+        };
+        public MainForm()
+        {
+            InitializeComponent();
+            // Icon trên thanh tiêu đề/taskbar lấy từ icon của exe (app.ico)
+            try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch (Exception) { }
+            picCamera.Controls.Add(lblMatchResult);
+            lblMatchResult.Click += btnFaceMatching_Click;
+            Resize += (s, e) => ApplyResponsiveLayout();
+            txtWebhookPass.Enter += txtWebhookPass_Enter;
+            txtWebhookPass.KeyDown += txtWebhookPass_KeyDown;
+            txtWebhookPass.KeyPress += txtWebhookPass_KeyPress;
+            txtWebhookPass.ContextMenuStrip = new ContextMenuStrip();
+            // Áp sau khi WinForms đã tự co giãn theo DPI để tránh nhân tỉ lệ hai lần
+            Shown += (s, e) => { _layoutReady = true; ApplyResponsiveLayout(); };
+            // Đăng ký sau khi có handle để BeginInvoke được; link mở app lần đầu sẽ được phát ngay lúc này
+            Shown += (s, e) => DeepLink.Received += OnDeepLink;
+        }
+
+        /// <summary>
+        /// Xử lý link hanelekyc://... (xem DeepLink). Không cho link đổi cấu hình webhook:
+        /// trang web bất kỳ đều gọi được link nên nếu cho đổi sẽ bị lấy cắp dữ liệu CCCD.
+        /// </summary>
+        private void OnDeepLink(DeepLinkRequest req)
+        {
+            if (IsDisposed)
+                return;
+            if (InvokeRequired)
+            {
+                try { BeginInvoke(() => OnDeepLink(req)); } catch (Exception) { }
+                return;
+            }
+
+            WriteLog($"DeepLink: {req.RawUrl}");
+            BringToFrontWindow();
+            switch (req.Action)
+            {
+                case "open":
+                    break;
+                case "read":
+                    // Xoá dữ liệu lần đọc trước để sẵn sàng đọc thẻ mới
+                    ResetFormInfo();
+                    break;
+                default:
+                    WriteLog($"DeepLink: action không hỗ trợ '{req.Action}'");
+                    break;
+            }
+        }
+
+        private void BringToFrontWindow()
+        {
+            if (WindowState == FormWindowState.Minimized)
+                WindowState = FormWindowState.Normal;
+            Show();
+            // Bật/tắt TopMost để Windows chịu đưa cửa sổ lên trên cùng
+            TopMost = true;
+            TopMost = false;
+            Activate();
+        }
+
+        private bool _layoutReady;
+        private bool? _compactHeight;
+        private bool? _compactWidth;
+
+        /// <summary>
+        /// Thu gọn bố cục cho màn hình laptop (cửa sổ thấp/hẹp), giữ nguyên bố cục gốc trên màn hình lớn.
+        /// </summary>
+        private void ApplyResponsiveLayout()
+        {
+            if (!_layoutReady || WindowState == FormWindowState.Minimized)
+                return;
+            float k = DeviceDpi / 96f;
+            int S(int v) => (int)Math.Round(v * k);
+            bool shortH = ClientSize.Height < S(820);
+            bool narrow = ClientSize.Width < S(1300);
+            if (_compactHeight == shortH && _compactWidth == narrow)
+                return;
+            _compactHeight = shortH;
+            _compactWidth = narrow;
+
+            SuspendLayout();
+            pnlBody.Padding = new Padding(S(shortH ? 10 : 20));
+            cardMain.Padding = shortH ? new Padding(S(20), S(8), S(20), S(10)) : new Padding(S(28), S(16), S(28), S(20));
+
+            tlpMain.RowStyles[0].Height = S(shortH ? 120 : 150);
+            tlpMain.RowStyles[1].Height = S(shortH ? 13 : 21);
+            pnlSeparator.Margin = new Padding(0, S(shortH ? 6 : 10), 0, S(shortH ? 6 : 10));
+            tlpStatus.RowStyles[0].Height = S(shortH ? 32 : 40);
+            tlpStatus.RowStyles[1].Height = S(shortH ? 32 : 40);
+
+            int btnTop = S(shortH ? 6 : 18);
+            btnSend.Margin = new Padding(0, btnTop, 0, 0);
+            btnFingerMain.Margin = new Padding(0, btnTop, S(8), 0);
+            btnRefresh.Margin = new Padding(0, btnTop, S(8), 0);
+            btnSettings.Margin = new Padding(0, btnTop, S(8), 0);
+            lbStatusMessage.Margin = new Padding(0, S(shortH ? 8 : 18), S(24), 0);
+            spinner.Margin = new Padding(0, S(shortH ? 10 : 20), 0, 0);
+
+            tlpInfo.RowStyles[0].Height = S(shortH ? 30 : 40);
+            tlpInfo.RowStyles[6].Height = S(shortH ? 30 : 40);
+            tlpInfo.ColumnStyles[0].Width = S(narrow ? 190 : 240);
+            tlpInfo.ColumnStyles[2].Width = S(narrow ? 130 : 160);
+            tlpInfo.ColumnStyles[5].Width = S(narrow ? 130 : 160);
+            ResumeLayout(true);
+        }
+
+        private void MainForm_Load(object sender, EventArgs e)
+        {
+            cbOcrMode.SelectedIndex = 0; //ThanhNV test vietin
+            cbReaderTypes.SelectedIndex = 0;
+            cbAntiSpoofing.SelectedIndex = 0;
+            cbProcessStep.SelectedIndex = 0; //ThanhNV test vietin
+            _timer.Tick += _timer_Tick;
+            _timer.Interval = 5;
+            ResetFormInfo();
+            txtWebhookUrl.Text = _settings.WebhookUrl;
+            txtWebhookUser.Text = _settings.WebhookUser;
+            chkAutoCompare.Checked = _settings.AutoCompareFace;
+            numMatchThreshold.Value = Math.Clamp(_settings.FaceMatchThreshold, (int)numMatchThreshold.Minimum, (int)numMatchThreshold.Maximum);
+            ShowPasswordMask();
+            SetStatusMessage("ĐANG TÌM THIẾT BỊ...", Theme.Navy, true);
+            InitReader();
+            ActiveControl = null;
+            // Load camera list
+            // btnRefreshCamera_Click(new object(), new EventArgs());
+        }
+
+        private void _timer_Tick(object? sender, EventArgs e)
+        {
+            lbTime.Text = $"{_stw.Elapsed.ToString(@"ss\.fff")} s";
+            LoadExternalCameras();
+        }
+
+        private void ResetFormInfo()
+        {
+            _timer.Stop();
+            _stw.Stop();
+            lbTime.Text = "00.000 s";
+
+
+            //Personal infor
+            txtDocumentNumber.Text = "Số CCCD: ";
+            txtDateOfBirth.Text = "Ngày sinh: ";
+            txtIssueDate.Text = "Ngày cấp: ";
+            txtPreviousNumber.Text = "Số CMND: ";
+            txtName.Text = "Họ và tên: ";
+            txtSex.Text = "Giới tính: ";
+            txtNationality.Text = "Quốc tịch: ";
+            txtNation.Text = "Dân tộc: ";
+            txtReligion.Text = "Tôn giáo: ";
+            txtHometown.Text = "Quê quán: ";
+            txtAddress.Text = "Địa chỉ: ";
+            txtCharacter.Text = "Nhận dạng: ";
+            txtExpiredDate.Text = "Ngày hết hạn: ";
+            txtFatherName.Text = "Họ tên bố: ";
+            txtMotherName.Text = "Họ tên mẹ: ";
+            txtPartnerName.Text = "Vợ/Chồng: ";
+            txtAge.Text = "Tuổi: ";
+            txtMRZ.Text = "MRZ: ";
+            txtDSCert.Text = "";
+
+            //Chip image
+            picChipImage.Image = null;
+            _fingers.Clear();
+            picIdcardFront.Image = null;
+            pictureIdcardBack.Image = null;
+            _ChipFaceBts = null;
+            _cardData = null;
+            _ocrFrontBts = null;
+            _ocrBackBts = null;
+
+            //Process status
+            indReadOk.State = IndicatorState.None;
+            indIntegrity.State = IndicatorState.None;
+            indMatch.State = IndicatorState.None;
+            indMatch.Text = "So khớp";
+            lblMatchResult.Visible = false;
+        }
+
+        private void SetStatusMessage(string text, Color color, bool busy)
+        {
+            lbStatusMessage.Text = text;
+            lbStatusMessage.ForeColor = color;
+            spinner.Active = busy;
+        }
+
+        private static IndicatorState ToIndicator(CardStepStatus status) => status switch
+        {
+            CardStepStatus.SUCCESS => IndicatorState.Ok,
+            CardStepStatus.FAILURE => IndicatorState.Fail,
+            _ => IndicatorState.None
+        };
+
+        private static string GetAge(string? dateOfBirth)
+        {
+            string[] formats = { "dd/MM/yyyy", "d/M/yyyy", "ddMMyyyy", "yyyy-MM-dd", "dd-MM-yyyy" };
+            if (!DateTime.TryParseExact(dateOfBirth?.Trim(), formats, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out var dob))
+                return "";
+            var today = DateTime.Today;
+            int age = today.Year - dob.Year;
+            if (dob.Date > today.AddYears(-age))
+                age--;
+            return age.ToString();
+        }
+
+        private void btnSettings_Click(object sender, EventArgs e)
+        {
+            using var dlg = new Form
+            {
+                Text = "Cài đặt cấu hình",
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                StartPosition = FormStartPosition.CenterParent,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                ShowInTaskbar = false,
+                BackColor = Color.White,
+                Font = this.Font,
+                ClientSize = new Size(560, 660)
+            };
+
+            var btnCloseDlg = new Button
+            {
+                Text = "Lưu",
+                DialogResult = DialogResult.OK,
+                BackColor = Color.FromArgb(21, 101, 192),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Size = new Size(100, 34),
+                Cursor = Cursors.Hand,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
+            };
+            btnCloseDlg.FlatAppearance.BorderSize = 0;
+            var pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 54, BackColor = Color.FromArgb(243, 246, 250) };
+            btnCloseDlg.Location = new Point(pnlFooter.Width - btnCloseDlg.Width - 16, 10);
+            pnlFooter.Controls.Add(btnCloseDlg);
+            dlg.AcceptButton = btnCloseDlg;
+            dlg.CancelButton = btnCloseDlg;
+
+            // Mượn panel cài đặt sẵn có để giữ nguyên control, giá trị và sự kiện
+            Controls.Remove(pnlSettings);
+            pnlSettingsLine.Visible = false;
+            pnlSettings.Dock = DockStyle.Fill;
+            pnlSettings.Visible = true;
+            dlg.Controls.Add(pnlSettings);
+            dlg.Controls.Add(pnlFooter);
+            try
+            {
+                dlg.FormClosing += (s, ev) =>
+                {
+                    string url = txtWebhookUrl.Text.Trim();
+                    if (url.Length > 0 && !(Uri.TryCreate(url, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)))
+                    {
+                        MessageBox.Show(dlg, "Webhook URL không hợp lệ (phải bắt đầu bằng http:// hoặc https://)!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        txtWebhookUrl.Focus();
+                        ev.Cancel = true;
+                    }
+                };
+                dlg.ShowDialog(this);
+                SaveWebhookSettings();
+            }
+            finally
+            {
+                dlg.Controls.Remove(pnlSettings);
+                pnlSettings.Visible = false;
+                Controls.Add(pnlSettings);
+            }
+        }
+
+        private void SaveWebhookSettings()
+        {
+            _settings.WebhookUrl = txtWebhookUrl.Text.Trim();
+            _settings.WebhookUser = txtWebhookUser.Text.Trim();
+            _settings.AutoCompareFace = chkAutoCompare.Checked;
+            _settings.FaceMatchThreshold = (int)numMatchThreshold.Value;
+            // Ô đang hiện mặt nạ "********" nghĩa là người dùng không đổi mật khẩu
+            if (!_passMasked)
+                _settings.SetWebhookPassword(txtWebhookPass.Text);
+            try
+            {
+                _settings.Save();
+                ShowPasswordMask();
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"SaveSettings: {ex}");
+                MessageBox.Show("Không lưu được cấu hình: " + ErrorText.Translate(ex.Message), "Thông báo lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private const string PasswordMask = "********";
+        private bool _passMasked;
+
+        /// <summary>Mật khẩu đã lưu chỉ hiển thị dạng 8 dấu *, không lộ nội dung và độ dài.</summary>
+        private void ShowPasswordMask()
+        {
+            _passMasked = !string.IsNullOrEmpty(_settings.GetWebhookPassword());
+            txtWebhookPass.Text = _passMasked ? PasswordMask : "";
+        }
+
+        private void txtWebhookPass_Enter(object? sender, EventArgs e)
+        {
+            if (_passMasked)
+                BeginInvoke(new Action(txtWebhookPass.SelectAll));
+        }
+
+        private void txtWebhookPass_KeyDown(object? sender, KeyEventArgs e)
+        {
+            if (!_passMasked)
+                return;
+            if (e.KeyCode == Keys.Back || e.KeyCode == Keys.Delete)
+            {
+                // Xóa mật khẩu đã lưu
+                ClearPasswordMask();
+                e.SuppressKeyPress = true;
+            }
+            else if ((e.Control && e.KeyCode == Keys.V) || (e.Shift && e.KeyCode == Keys.Insert))
+            {
+                ClearPasswordMask();
+            }
+        }
+
+        private void txtWebhookPass_KeyPress(object? sender, KeyPressEventArgs e)
+        {
+            // Gõ ký tự mới thì thay toàn bộ mặt nạ bằng mật khẩu mới
+            if (_passMasked && !char.IsControl(e.KeyChar))
+                ClearPasswordMask();
+        }
+
+        private void ClearPasswordMask()
+        {
+            _passMasked = false;
+            txtWebhookPass.Text = "";
+        }
+
+        private void btnClose_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+        private void OnEvent(object sender, StatusEventArgs e)
+        {
+            switch (e.EventName)
+            {
+                case EVENT_NAMES.READER:
+                    ProcessReaderEvent(e as StatusEventReaderArgs);
+                    break;
+                case EVENT_NAMES.CARD:
+                    ProcessCardEvent(e as StatusEventCardArgs);
+                    break;
+                case EVENT_NAMES.READ:
+                    ProcessReadEvent(e as StatusEventReadArgs);
+                    break;
+                case EVENT_NAMES.SCAN:
+                    ProcessScanEvent(e as ScanEventArgs);
+                    break;
+                case EVENT_NAMES.READER_CAMERA:
+                    ProcessCameraEvent(e as StatusEventCameraArgs);
+                    break;
+                case EVENT_NAMES.FINGER_PRINT:
+                    break;
+            }
+        }
+        private void InitReader()
+        {
+            /*Register all reader status event*/
+            _reader.OnStatusChanged += Reader_OnStatusChanged;
+
+            // var config = new VnPcscsConfig();
+            var config = new VnHn212Config();
+
+            /* set this to false: input access code or scan & read as required
+             * true: Auto scan card & read data*/
+            // config.AutoReadWhenPresent = false;
+
+            /*Set this flag to process VerifySOD*/
+            config.DoVerifySOD = !txtFastRead.Checked;
+
+            /*Set this flag to process AA/CA Authen*/
+            config.CheckAACAAuthen = !txtFastRead.Checked;
+
+            /* Capture face, Minimum time have real face*/
+            /* Default is 200ms */
+            config.AutoCaptureFaceMinimumMs = 200;
+            /* Spoofing mode */
+            config.SpoofingMode = (HN212SpoofMode)(cbAntiSpoofing.SelectedIndex);
+
+            /* Retry count */
+            config.ReadCardRetryCount = 2;
+
+            /* Seq */
+            if (cbProcessStep.SelectedIndex == 1)
+                config.ProcessSequence = HN212ProSeq.CardThenFace;
+            if (cbProcessStep.SelectedIndex == 2)
+                config.ProcessSequence = HN212ProSeq.CardAndCapture2Side;
+            else
+                config.ProcessSequence = HN212ProSeq.CardOnly;
+
+            config.OcrMode = (HN212OcrMode)(cbOcrMode.SelectedIndex + 1);
+
+            config.HidLibUsed = HN212HidLibrary.HidApi; //ThanhNV test
+
+            config.CaptureFaceUseFirstCamAvaiable = true;
+
+            config.internalDecodeQrcodeType = InternalDecodeQrcodeType.DECODE_ONCE;
+
+            // Tạm tắt vân tay để tránh lỗi thư viện vân tay khi khởi động reader
+            // config.EnableFingerPrint = true;
+
+            /*Start reader monitoring ...*/
+            _reader.StartMonitor(config);
+        }
+        // Logger "App" khai báo trong reader.log4net.config, ghi ra Logs\App.log cạnh file exe
+        static readonly ILog _log = LogManager.GetLogger("App");
+
+        private static void WriteLog(string log)
+        {
+            System.Diagnostics.Debug.WriteLine(log);
+            _log.Info(log);
+        }
+        private void ProcessReaderEvent(StatusEventReaderArgs? ev)
+        {
+            if (ev == null)
+                return;
+            WriteLog($"----> [{DateTime.Now.ToString("HH:mm:ss")}] Device {ev.ReaderSerialNumber} change stated from: {ev.LastState} to: {ev.NewState}.");
+            bool connected = ev.NewState == READER_STATUS.ADDED;
+            _readerSerial = connected ? ev.ReaderSerialNumber ?? "" : "";
+            lbDeviceState.Text = connected ? "ĐÃ KẾT NỐI" : "CHƯA KẾT NỐI";
+            lbDeviceState.ForeColor = connected ? Theme.Success : Theme.Danger;
+            lbReaderStatus.Text = connected ? $"{ev.ReaderSerialNumber}" : "KHÔNG CÓ";
+            lbReaderStatus.ForeColor = connected ? Theme.Info : Theme.Danger;
+            if (connected)
+                SetStatusMessage("CHỜ CẮM THẺ...", Theme.Navy, true);
+            else
+            {
+                _cardPresent = false;
+                indChipActive.State = IndicatorState.None;
+                SetStatusMessage("CHƯA KẾT NỐI THIẾT BỊ", Theme.Danger, false);
+            }
+        }
+
+        private void ProcessCameraEvent(StatusEventCameraArgs? ev)
+        {
+            if (ev == null)
+                return;
+            WriteLog($"----> [{DateTime.Now.ToString("HH:mm:ss")}] {ev.Message}.");
+            btnRefreshCamera_Click(new object(), new EventArgs());
+        }
+
+        private void ProcessCardEvent(StatusEventCardArgs? ev)
+        {
+            if (ev == null)
+                return;
+            WriteLog($"----> [{DateTime.Now.ToString("HH:mm:ss")}] Card in Device {ev.ReaderSerialNumber} change stated from: {ev.LastState} to: {ev.NewState}.");
+            _cardPresent = ev.NewState != CARD_STATUS.EMPTY;
+            indChipActive.State = _cardPresent ? IndicatorState.Ok : IndicatorState.None;
+
+            //Have new card, start timer to show time processing
+            if (ev.NewState == CARD_STATUS.PRESENT)
+            {
+                //Clear form
+                ResetFormInfo();
+                SetStatusMessage("ĐANG ĐỌC THẺ...", Theme.Info, true);
+                //Start counter if auto read
+                if (_reader.ReaderConfig.AutoReadWhenPresent)
+                {
+                    _stw.Restart();
+                    _timer.Start();
+                }
+                else //Show form input Access code
+                {
+                    //Test for ePassport
+                    if (cbReaderTypes.SelectedIndex == 1)
+                    {
+                        _reader.Hn212Device.PowerOnOffLight(true, true, 200);
+                        _reader.StartReadCard("150559");
+
+                        _stw.Restart();
+                        _timer.Start();
+                    }
+                    /*
+                    InputAccessCode frm = new InputAccessCode();
+                    if (frm.ShowDialog() != DialogResult.OK)
+                        return;
+                    _stw.Restart();
+                    _timer.Start();
+                    _reader.StartReadCard(frm.AccessCode);
+                    */
+                }
+            }
+            if (ev.NewState == CARD_STATUS.EMPTY)
+            {
+                if (chkDelteForm.Checked)
+                {
+                    ResetFormInfo();
+                    ResetPortrait();
+                }
+                SetStatusMessage("CHỜ CẮM THẺ...", Theme.Navy, true);
+            }
+        }
+        private void OnScancardEvent(StatusEventReadArgs ev)
+        {
+        }
+        private void OnReadCardFinish(StatusEventReadArgs ev)
+        {
+            _stw.Stop();
+            _timer.Stop();
+            //Check error
+            if (ev.Status != READ_CARD_STATUS.SUCCESS)
+            {
+                indReadOk.State = IndicatorState.Fail;
+                indChipActive.State = _cardPresent ? IndicatorState.Fail : IndicatorState.None;
+                SetStatusMessage("ĐỌC THẺ THẤT BẠI", Theme.Danger, false);
+                MessageBox.Show("Đọc thẻ thất bại: " + ErrorText.Translate(ev.Message), "Thông báo lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            indReadOk.State = IndicatorState.Ok;
+            indChipActive.State = IndicatorState.Ok;
+            _cardData = _reader.CardData;
+            indIntegrity.State = ToIndicator(_reader.CardData.VerifySOD);
+            SetStatusMessage("ĐỌC THẺ THÀNH CÔNG", Theme.Success, false);
+
+            //Show data
+            if (_reader.CardData.Dg2File != null && !string.IsNullOrEmpty(_reader.CardData.Dg2File.FaceImage))
+            {
+                //Chip image
+                var faceStr = _reader.CardData.Dg2File.FaceImage;
+                var chipFaceBase64 = faceStr[(faceStr.IndexOf(',') + 1)..];
+                _ChipFaceBts = Convert.FromBase64String(chipFaceBase64);
+                using (var ms = new MemoryStream(_ChipFaceBts))
+                {
+                    picChipImage.Image = Image.FromStream(ms);
+                }
+                // Đã chụp khuôn mặt trước khi đọc thẻ thì so khớp luôn
+                if (chkAutoCompare.Checked && _CamFaceBts != null)
+                    CompareFaces();
+            }
+            if (cbReaderTypes.SelectedIndex == 1) //Test display info
+            {
+                txtDocumentNumber.Text = "Số HC: " + "E01150559";
+                txtDateOfBirth.Text = "Ngày sinh: " + "31/10/1978";
+                txtIssueDate.Text = "Ngày cấp: " + "29/11/2023";
+                txtName.Text = "Họ và tên: " + "NGUYEN VAN THANH";
+            }
+
+            if (_reader.CardData.Dg13File != null)
+            {
+                //Personal info
+                txtDocumentNumber.Text = "Số CCCD: " + _reader.CardData.Dg13File.DocumentNumber;
+                txtDateOfBirth.Text = "Ngày sinh: " + _reader.CardData.Dg13File.DateOfBirth;
+                txtAge.Text = "Tuổi: " + GetAge(_reader.CardData.Dg13File.DateOfBirth);
+                txtIssueDate.Text = "Ngày cấp: " + _reader.CardData.Dg13File.IssueDate;
+                txtPreviousNumber.Text = "Số CMND: " + _reader.CardData.Dg13File.PreviousNumber;
+                txtName.Text = "Họ và tên: " + _reader.CardData.Dg13File.Name;
+                txtSex.Text = "Giới tính: " + _reader.CardData.Dg13File.Sex;
+                txtNationality.Text = "Quốc tịch: " + _reader.CardData.Dg13File.Nationality;
+                txtNation.Text = "Dân tộc: " + _reader.CardData.Dg13File.Nation;
+                txtReligion.Text = "Tôn giáo: " + _reader.CardData.Dg13File.Religion;
+                txtHometown.Text = "Quê quán: " + _reader.CardData.Dg13File.Hometown;
+                txtAddress.Text = "Địa chỉ: " + _reader.CardData.Dg13File.Address;
+                txtCharacter.Text = "Nhận dạng: " + _reader.CardData.Dg13File.Character;
+                txtExpiredDate.Text = "Ngày hết hạn: " + _reader.CardData.Dg13File.ExpiredDate;
+                txtFatherName.Text = "Họ tên bố: " + _reader.CardData.Dg13File.FatherName;
+                txtMotherName.Text = "Họ tên mẹ: " + _reader.CardData.Dg13File.MotherName;
+                txtPartnerName.Text = "Vợ/Chồng: " + _reader.CardData.Dg13File.PartnerName;
+                //MRZ
+                if (_reader.CardData.Dg1File != null)
+                {
+                    txtMRZ.Text = "MRZ: " + _reader.CardData.Dg1File.Mrz;
+                }
+                txtDSCert.Text = "DSCert: " + _reader.CardData.DSCert;
+                //VerifySOD
+                WriteLog($"Verify SOD: {_reader.CardData.VerifySOD}");
+
+                //Active/Chip Authentication
+                WriteLog($"Chip Authen: {_reader.CardData.AaCaAuthen}");
+
+                //Raw DATA
+                /*
+                _reader.CardData.EfCom
+                _reader.CardData.Dg1 ...
+                _reader.CardData.Dg15
+                _reader.CardData.Sod
+                */
+            }
+            //Thẻ đảng
+            if (_reader.CardData.Dg13PartyMemFile != null)
+            {
+                //Personal info
+                txtName.Text = "Họ và tên: " + _reader.CardData.Dg13PartyMemFile.Name;
+                txtPartnerName.Text = ""; // "Ngày cấp: " + _reader.CardData.Dg13PartyMemFile.IssueDate;
+
+                txtDocumentNumber.Text = "Số thẻ: " + _reader.CardData.Dg13PartyMemFile.DocumentNumber;
+                txtPreviousNumber.Text = ""; // "Dân tộc: " + _reader.CardData.Dg13PartyMemFile.Nation;
+
+                txtSex.Text = "Giới tính: " + _reader.CardData.Dg13PartyMemFile.Sex;
+                txtNationality.Text = ""; // "Tôn giáo: " + _reader.CardData.Dg13PartyMemFile.Religion;
+
+                txtExpiredDate.Text = "Ngày vào Đảng: " + _reader.CardData.Dg13PartyMemFile.PartyJoinDate;
+                txtReligion.Text = "Ngày chính thức: " + _reader.CardData.Dg13PartyMemFile.PartyJoinDate2;
+
+                txtFatherName.Text = "Ngày sinh: " + _reader.CardData.Dg13PartyMemFile.DateOfBirth;
+                txtMotherName.Text = ""; // "Ngày cấp: " + _reader.CardData.Dg13PartyMemFile.IssueDate;
+
+                txtDateOfBirth.Text = "Ngày cấp: " + _reader.CardData.Dg13PartyMemFile.IssueDate;
+                txtNation.Text = "Đơn vị: " + _reader.CardData.Dg13PartyMemFile.PartyCommittee;
+
+                txtCharacter.Text = "Dân tộc: " + _reader.CardData.Dg13PartyMemFile.Nation;
+                txtHometown.Text = "Tôn giáo: " + _reader.CardData.Dg13PartyMemFile.Religion;
+                txtAddress.Text = "Quê quán: " + _reader.CardData.Dg13PartyMemFile.Hometown;
+
+                txtIssueDate.Text = "";
+                
+                //MRZ
+                if (_reader.CardData.Dg1File != null)
+                {
+                    txtMRZ.Text = "MRZ: " + _reader.CardData.Dg1File.Mrz;
+                }
+                txtDSCert.Text = "DSCert: " + _reader.CardData.DSCert;
+                //VerifySOD
+                WriteLog($"Verify SOD: {_reader.CardData.VerifySOD}");
+
+                //Active/Chip Authentication
+                WriteLog($"Chip Authen: {_reader.CardData.AaCaAuthen}");
+            }
+
+            // Đọc thẻ CCCD xong thì tự động gửi qua webhook
+            if (_cardData.Dg13File != null && _ChipFaceBts != null)
+                BeginInvoke(new Action(async () => await SendCardInfoAsync()));
+        }
+        private void ProcessReadEvent(StatusEventReadArgs? ev)
+        {
+            try
+            {
+                if (ev == null)
+                    return;
+                WriteLog($"----> [{DateTime.Now.ToString("HH:mm:ss")}] Device {ev.ReaderSerialNumber} do step: {ev.Step}; status: {ev.Status}; message={ev.Message}.");
+                switch (ev.Step)
+                {
+                    case READ_CARD_STEPS.SCANCARD:
+                        OnScancardEvent(ev);
+                        break;
+                    case READ_CARD_STEPS.START:
+                    case READ_CARD_STEPS.CONNECT_CARD:
+                    case READ_CARD_STEPS.PACE:
+                    case READ_CARD_STEPS.READ_DGS:
+                    case READ_CARD_STEPS.VERIFY_SOD:
+                    case READ_CARD_STEPS.AACA_AUTHEN:
+                        break;
+                    case READ_CARD_STEPS.FINISH:
+                        OnReadCardFinish(ev);
+                        break;
+                }
+            }
+            catch (Exception)
+            {
+
+            }
+        }
+        private void ProcessScanEvent(ScanEventArgs? args)
+        {
+            //Display Scan image
+            try
+            {
+                if (args == null)
+                    return;
+                if (args.FrontData != null)
+                {
+                    _ocrFrontBts = args.FrontData;
+                    using (var ms = new MemoryStream(args.FrontData))
+                    {
+                        picIdcardFront.Image = Image.FromStream(ms);
+                        picIdcardFront.Visible = true;
+                    }
+                }
+                if (args.BackData != null)
+                {
+                    _ocrBackBts = args.BackData;
+                    using (var ms = new MemoryStream(args.BackData))
+                    {
+                        pictureIdcardBack.Image = Image.FromStream(ms);
+                        pictureIdcardBack.Visible = true;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+
+            }
+        }
+        private void Reader_OnStatusChanged(object sender, StatusEventArgs e)
+        {
+            //Call from other thread
+            if (this.InvokeRequired)
+            {
+                this.Invoke((MethodInvoker)(() =>
+                {
+                    OnEvent(sender, e);
+                }));
+            }
+            else
+            {
+                OnEvent(sender, e);
+            }
+        }
+
+        private void picCamera_Resize(object? sender, EventArgs e)
+        {
+            btnCaptureFace.Location = new Point((picCamera.ClientSize.Width - btnCaptureFace.Width) / 2,
+                (picCamera.ClientSize.Height - btnCaptureFace.Height) / 2);
+        }
+
+        private void btnFaceMatching_Click(object? sender, EventArgs e)
+        {
+            picCamera.Image = null;
+            lblMatchResult.Visible = false;
+            btnCaptureFace.Visible = true;
+            _CamFaceBts = null;
+            if (cbFaceCameras.SelectedIndex < 0)
+            {
+                MessageBox.Show("Vui lòng chọn Camera chụp ảnh khuôn mặt!", "Thông báo lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            //Change config
+            _reader.ReaderConfig.CaptureFaceDetectFace = chkDetectFace.Checked;
+            _reader.ReaderConfig.CaptureFaceDisplayTimeout = chkShowTimeout.Checked;
+            _reader.ReaderConfig.AutoCaptureFaceEnabled = chkAutocapture.Checked;
+            _reader.ReaderConfig.AutoCaptureFaceMinimumMs = (int)numFaceDurationTime.Value;
+            _reader.ReaderConfig.CaptureFaceCameraPath = ((CameraDevice)cbFaceCameras.SelectedItem).Id;
+            _reader.ReaderConfig.CaptureFaceTimeout = (int)numFaceTimeout.Value;
+
+            CaptureFace frm = new CaptureFace(_reader);
+            frm.ShowDialog();
+            //Show Face
+            try
+            {
+                if (frm.FaceImage != null)
+                {
+                    _CamFaceBts = frm.FaceImage.ToArray();
+                    using (var ms = new MemoryStream(frm.FaceImage))
+                    {
+                        picCamera.Image = Image.FromStream(ms);
+                    }
+                }
+            }
+            catch (Exception) { }
+            // Có ảnh thì ẩn icon, bấm vào ảnh để chụp lại
+            btnCaptureFace.Visible = picCamera.Image == null;
+
+            if (frm.Status != FACE_CAPTURE_STATAUS.SUCCESS)
+            {
+                string reason = "không xác định";
+                switch (frm.FaceType)
+                {
+                    case FACE_DETECT_TYPES.FAIL_SPOOR_FACE:
+                        reason = "không phải người thật";
+                        break;
+                    case FACE_DETECT_TYPES.FAIL_NO_FACE:
+                        reason = "không có khuôn mặt";
+                        break;
+                    case FACE_DETECT_TYPES.FAIL_MULTI_FACE:
+                        reason = "nhiều khuôn mặt";
+                        break;
+                    default:
+                        break;
+                }
+
+                indLiveFace.Text = $"Ảnh chụp trực tiếp ({reason})";
+                indLiveFace.State = IndicatorState.Fail;
+                WriteLog($"FaceCapture: {frm.Message}");
+                MessageBox.Show(ErrorText.Translate(frm.Message), "Thông báo lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            //if (_reader.ReaderConfig.CaptureFaceCompare)
+            //{
+            //    indMatch.Text = $"So khớp ({frm.CompareScore}%)";
+            //    indMatch.State = frm.CompareScore >= 60 ? IndicatorState.Ok : IndicatorState.Fail;
+            //}
+            //else
+            {
+                indLiveFace.Text = "Ảnh chụp trực tiếp";
+                indLiveFace.State = IndicatorState.Ok;
+                indMatch.Text = "So khớp";
+                indMatch.State = IndicatorState.None;
+            }
+            // Chưa đọc thẻ thì chờ, sẽ so khớp khi đọc thẻ xong
+            if (chkAutoCompare.Checked && _ChipFaceBts != null)
+                CompareFaces();
+        }
+
+        private void btnClearForm_Click(object sender, EventArgs e)
+        {
+            ResetFormInfo();
+        }
+
+        private void btnReadQR_Click(object sender, EventArgs e)
+        {
+            if (_reader == null || !_reader.IsDeviceConnected())
+                return;
+           var rest = _reader.StartAA(Encoding.UTF8.GetBytes("12345678"));
+        }
+
+        private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            DeepLink.Received -= OnDeepLink;
+            _reader.StopMonitor();
+        }
+
+        private void txtFastRead_CheckedChanged(object sender, EventArgs e)
+        {
+            _reader.ReaderConfig.DoVerifySOD = !txtFastRead.Checked;
+            _reader.ReaderConfig.CheckAACAAuthen = !txtFastRead.Checked;
+        }
+
+        private void chkAutocapture_CheckedChanged(object sender, EventArgs e)
+        {
+            numFaceDurationTime.Enabled = chkAutocapture.Checked;
+        }
+        private void LoadExternalCameras()
+        {
+            if (_reader.Hn212Device == null || _reader.Hn212Device.OcrCam.IsEmpty())
+                return;
+            if (cbFaceCameras.Items.Count > 0)
+                return;
+            btnRefreshCamera_Click(new object(), new EventArgs());
+        }
+        private void btnRefreshCamera_Click(object sender, EventArgs e)
+        {
+            if (_reader.Hn212Device == null)
+                return;
+            cbFaceCameras.DataSource = null;
+            var cams = _reader.GetCameraList(false);
+            cbFaceCameras.DataSource = cams;
+            cbFaceCameras.DisplayMember = "Name";
+            cbFaceCameras.ValueMember = "Id";
+            if (cbFaceCameras.Items.Count > 0)
+            {
+                cbFaceCameras.SelectedIndex = 0;
+                //set facecam id
+                _reader.FaceCaptureCamId = (cams[0].Id);
+            }
+        }
+
+        private void btnCompare_Click(object sender, EventArgs e)
+        {
+            if (_ChipFaceBts == null || _CamFaceBts == null)
+            {
+                MessageBox.Show("Vui lòng chụp ảnh và đọc thẻ chip trước!", "Thông báo lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            CompareFaces();
+        }
+
+        private void CompareFaces()
+        {
+            if (_ChipFaceBts == null || _CamFaceBts == null)
+                return;
+            try
+            {
+                int score = _reader.CompareFace(_ChipFaceBts, _CamFaceBts);
+                _lastMatchScore = score;
+                indMatch.Text = $"So khớp ({score}%)";
+                bool matched = score >= (int)numMatchThreshold.Value;
+                indMatch.State = matched ? IndicatorState.Ok : IndicatorState.Fail;
+                lblMatchResult.Text = matched ? $"SUCCESS ({score}%)" : $"FAIL ({score}%)";
+                lblMatchResult.BackColor = matched ? Theme.Success : Theme.Danger;
+                lblMatchResult.Visible = true;
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"CompareFace: {ex}");
+                MessageBox.Show(ErrorText.Translate(ex.Message), "Thông báo lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private async void btnSend_Click(object sender, EventArgs e)
+        {
+            await SendCardInfoAsync();
+        }
+
+        bool _sending = false;
+
+        /// <summary>Gửi dữ liệu thẻ qua webhook (tự động gọi sau khi đọc thẻ thành công), không cần chụp ảnh, không hỏi xác nhận.</summary>
+        private async Task SendCardInfoAsync()
+        {
+            if (_sending)
+                return;
+            var dg13 = _cardData?.Dg13File;
+            if (dg13 == null || _ChipFaceBts == null)
+            {
+                MessageBox.Show("Vui lòng đọc thẻ CCCD trước khi gửi!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            bool hasV1 = !string.IsNullOrWhiteSpace(_settings.WebhookUrl) && !string.IsNullOrEmpty(_settings.WebhookUser);
+            bool hasV2 = !string.IsNullOrWhiteSpace(_settings.WebhookUrlV2);
+            if (!hasV1 && !hasV2)
+            {
+                MessageBox.Show("Chưa cấu hình Webhook URL hoặc tài khoản.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // Chụp ảnh không bắt buộc; có ảnh thì so khớp lại, khớp hay không vẫn gửi
+            if (_CamFaceBts != null)
+                CompareFaces();
+            else
+                _lastMatchScore = null;
+
+            _sending = true;
+            btnSend.Enabled = false;
+            btnSend.Text = "ĐANG GỬI...";
+            SetStatusMessage("ĐANG GỬI THÔNG TIN...", Theme.Info, true);
+            var errors = new List<string>();
+            try
+            {
+                string? sessionId = null;
+                if (hasV1)
+                {
+                    try
+                    {
+                        var (requestId, sid) = await SendNfcInfoAsync();
+                        sessionId = sid;
+                        WriteLog($"SendNfcInfo: requestId={requestId}, sessionId={sessionId}");
+                    }
+                    catch (Exception ex)
+                    {
+                        WriteLog($"SendNfcInfo: {ex}");
+                        errors.Add((hasV2 ? "Webhook: " : "") + DescribeSendError(ex));
+                    }
+                }
+                if (hasV2)
+                {
+                    try
+                    {
+                        await SendIdentificationV2Async(sessionId);
+                        WriteLog($"SendIdentificationV2: sessionId={sessionId}");
+                    }
+                    catch (Exception ex)
+                    {
+                        WriteLog($"SendIdentificationV2: {ex}");
+                        errors.Add((hasV1 ? "Webhook v2: " : "") + DescribeSendError(ex));
+                    }
+                }
+            }
+            finally
+            {
+                _sending = false;
+                btnSend.Enabled = true;
+                btnSend.Text = "GỬI THÔNG TIN";
+            }
+
+            if (errors.Count == 0 && hasV1 && hasV2)
+            {
+                // Gửi thành công cả 2 luồng (webhook + webhook v2) thì tự động đóng tool
+                SetStatusMessage("GỬI THÀNH CÔNG - ĐANG ĐÓNG ỨNG DỤNG...", Theme.Success, false);
+                WriteLog("Gửi thành công cả 2 luồng, tự động đóng ứng dụng.");
+                await Task.Delay(1500);
+                Close();
+            }
+            else if (errors.Count == 0)
+            {
+                SetStatusMessage("GỬI THÀNH CÔNG", Theme.Success, false);
+                MessageBox.Show("Gửi thành công.", "Kết quả gửi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else
+            {
+                SetStatusMessage("GỬI THẤT BẠI", Theme.Danger, false);
+                MessageBox.Show("Gửi thông tin thất bại:\n" + string.Join("\n", errors), "Thông báo lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private static string DescribeSendError(Exception ex) => ex switch
+        {
+            ApiException => ex.Message,
+            HttpRequestException { StatusCode: System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden } => "Sai tài khoản hoặc mật khẩu.",
+            HttpRequestException { StatusCode: System.Net.HttpStatusCode.NotFound } => "Không tìm thấy địa chỉ API, vui lòng kiểm tra lại Webhook URL.",
+            HttpRequestException { StatusCode: not null } h => $"Máy chủ trả về lỗi {(int)h.StatusCode.Value}.",
+            TaskCanceledException => "Hết thời gian chờ phản hồi từ máy chủ.",
+            _ => "Không kết nối được tới máy chủ."
+        };
+
+        /// <summary>
+        /// Gửi thông tin CCCD sang webhook v2: POST {WebhookUrlV2}/api/webhook/send-identification
+        /// với body {status: 0, msg, data: {...}} (status = 0 là đọc thẻ thành công).
+        /// </summary>
+        private async Task SendIdentificationV2Async(string? sessionId)
+        {
+            var card = _cardData!;
+            var dg13 = card.Dg13File!;
+            string url = _settings.WebhookUrlV2.TrimEnd('/');
+            const string path = "/api/webhook/send-identification";
+            if (!url.EndsWith(path, StringComparison.OrdinalIgnoreCase))
+                url += path;
+
+            var body = new
+            {
+                status = 0,
+                msg = (string?)null,
+                data = new
+                {
+                    sessionId = sessionId ?? Guid.NewGuid().ToString(),
+                    identification = dg13.DocumentNumber,
+                    previousNumber = dg13.PreviousNumber,
+                    name = dg13.Name,
+                    dob = dg13.DateOfBirth,
+                    sex = ToSexCode(dg13.Sex),
+                    nationality = "VNM",
+                    nation = dg13.Nation,
+                    doe = dg13.ExpiredDate,
+                    por = dg13.Address,
+                    poo = dg13.Hometown,
+                    religion = dg13.Religion,
+                    registerDate = dg13.IssueDate,
+                    symbol = dg13.Character,
+                    father = dg13.FatherName,
+                    mother = dg13.MotherName,
+                    couple = dg13.PartnerName,
+                    mrz = card.Dg1File?.Mrz ?? "",
+                    nfcImg = Convert.ToBase64String(_ChipFaceBts!)
+                }
+            };
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, url)
+            {
+                Content = System.Net.Http.Json.JsonContent.Create(body)
+            };
+            using var response = await _http.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+        }
+
+        /// <summary>Lỗi nghiệp vụ máy chủ trả về (status = 0), Message là thông báo hiển thị cho người dùng.</summary>
+        private sealed class ApiException : Exception
+        {
+            public ApiException(string message) : base(message) { }
+        }
+
+        private const string PolicyContent = "Tôi đã đọc và đồng ý với chính sách xử lý dữ liệu cá nhân";
+        private const string PolicyRef = "https://softdreams.vn/chinh-sach-bao-mat/";
+
+        /// <summary>Đăng nhập lấy token rồi gửi NFCInfo, trả về requestId và sessionId từ máy chủ.</summary>
+        private async Task<(string? RequestId, string? SessionId)> SendNfcInfoAsync()
+        {
+            var card = _cardData!;
+            var dg13 = card.Dg13File!;
+            string baseUrl = _settings.WebhookUrl.TrimEnd('/');
+
+            var auth = await PostApiAsync(baseUrl + "/api/authenticate",
+                new { username = _settings.WebhookUser, password = _settings.GetWebhookPassword() }, null);
+            string? token = auth.ValueKind == JsonValueKind.Object && auth.TryGetProperty("token", out var t) && t.ValueKind == JsonValueKind.String ? t.GetString() : null;
+            if (string.IsNullOrEmpty(token))
+                throw new ApiException("Máy chủ không trả về token đăng nhập.");
+
+            string id = Guid.NewGuid().ToString();
+            string mrz = card.Dg1File?.Mrz ?? "";
+            var policy = new Dictionary<string, string>
+            {
+                ["time"] = DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss", CultureInfo.InvariantCulture),
+                ["content"] = PolicyContent,
+                ["number"] = dg13.DocumentNumber ?? "",
+                ["ref"] = PolicyRef,
+                ["ip"] = await GetPublicIpAsync()
+            };
+            var jsonOpts = new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
+            var payload = new
+            {
+                type = "CCCD",
+                number = dg13.DocumentNumber,
+                name = dg13.Name,
+                dob = dg13.DateOfBirth,
+                sex = ToSexCode(dg13.Sex),
+                nationality = "VNM",
+                doe = dg13.ExpiredDate,
+                por = dg13.Address,
+                poo = dg13.Hometown,
+                religion = dg13.Religion,
+                nation = dg13.Nation,
+                registerDate = dg13.IssueDate,
+                symbol = dg13.Character,
+                father = dg13.FatherName,
+                mother = dg13.MotherName,
+                couple = dg13.PartnerName,
+                identity = dg13.PreviousNumber,
+                sodDg = card.Sod != null ? Convert.ToBase64String(card.Sod) : null,
+                id,
+                deviceId = _readerSerial,
+                mrz,
+                nfcImg = Convert.ToBase64String(_ChipFaceBts!),
+                ocrBackImg = _ocrBackBts != null ? Convert.ToBase64String(_ocrBackBts) : null,
+                ocrFrontImg = _ocrFrontBts != null ? Convert.ToBase64String(_ocrFrontBts) : null,
+                faceImg = _CamFaceBts != null ? Convert.ToBase64String(_CamFaceBts) : null,
+                policyAgreement = JsonSerializer.Serialize(policy, jsonOpts),
+                extraInfo = (string?)null
+            };
+
+            var data = await PostApiAsync(baseUrl + "/api/nfc-scanner/send-data", payload, token);
+            string? Str(string name) => data.ValueKind == JsonValueKind.Object && data.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+            return (Str("requestId") ?? id, Str("sessionId"));
+        }
+
+        /// <summary>
+        /// Gọi API trả về dạng {status, data, msg, errorCode}: status = 1 thì trả về data, ngược lại ném ApiException kèm msg.
+        /// </summary>
+        private static async Task<JsonElement> PostApiAsync(string url, object body, string? token)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, url)
+            {
+                Content = System.Net.Http.Json.JsonContent.Create(body)
+            };
+            if (token != null)
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            using var response = await _http.SendAsync(request);
+            string text = await response.Content.ReadAsStringAsync();
+
+            JsonElement root;
+            try
+            {
+                using var doc = JsonDocument.Parse(text);
+                root = doc.RootElement.Clone();
+            }
+            catch (JsonException)
+            {
+                response.EnsureSuccessStatusCode();
+                throw new ApiException("Phản hồi từ máy chủ không hợp lệ.");
+            }
+
+            bool ok = root.ValueKind == JsonValueKind.Object && root.TryGetProperty("status", out var st)
+                && st.ValueKind == JsonValueKind.Number && st.GetInt32() == 1;
+            if (!ok)
+            {
+                string? msg = root.ValueKind == JsonValueKind.Object && root.TryGetProperty("msg", out var m) && m.ValueKind == JsonValueKind.String ? m.GetString() : null;
+                if (string.IsNullOrWhiteSpace(msg))
+                {
+                    response.EnsureSuccessStatusCode();
+                    msg = "Máy chủ trả về trạng thái thất bại.";
+                }
+                throw new ApiException(msg);
+            }
+            response.EnsureSuccessStatusCode();
+            return root.TryGetProperty("data", out var data) ? data : default;
+        }
+
+        // Máy sau router chỉ có IP nội bộ, IP public phải hỏi dịch vụ bên ngoài; thử lần lượt để có dự phòng
+        private static readonly string[] PublicIpServices =
+        {
+            "https://api.ipify.org",
+            "https://icanhazip.com",
+            "https://checkip.amazonaws.com",
+            "https://ifconfig.me/ip"
+        };
+
+        /// <summary>IP public của máy, không dịch vụ nào trả lời thì dùng IP nội bộ.</summary>
+        private static async Task<string> GetPublicIpAsync()
+        {
+            foreach (var url in PublicIpServices)
+            {
+                try
+                {
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+                    string ip = (await _http.GetStringAsync(url, cts.Token)).Trim();
+                    if (System.Net.IPAddress.TryParse(ip, out _))
+                        return ip;
+                }
+                catch (Exception ex)
+                {
+                    WriteLog($"GetPublicIp {url}: {ex.Message}");
+                }
+            }
+            try
+            {
+                var local = System.Net.Dns.GetHostAddresses(System.Net.Dns.GetHostName())
+                    .FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
+                return local?.ToString() ?? "";
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+
+        /// <summary>"Nam" → "M", "Nữ" → "F".</summary>
+        private static string? ToSexCode(string? sex)
+        {
+            string s = (sex ?? "").Trim().Normalize(NormalizationForm.FormC).ToLowerInvariant();
+            return s switch
+            {
+                "nam" or "m" or "male" => "M",
+                "nữ" or "nu" or "f" or "female" => "F",
+                _ => sex
+            };
+        }
+
+        private void chkAutoRead_CheckedChanged(object sender, EventArgs e)
+        {
+            _reader.ReaderConfig.AutoReadWhenPresent = chkAutoRead.Checked;
+        }
+
+        //Change reader type
+        private void cbReaderTypes_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            /*
+            picIdcardFront.Visible = cbReaderTypes.SelectedIndex > 0;
+            pictureIdcardBack.Visible = cbReaderTypes.SelectedIndex > 0;
+            btnRejectCard.Visible = cbReaderTypes.SelectedIndex > 0;
+            _reader.Hn212Device.SetSupportDeviceType(cbReaderTypes.SelectedIndex == 0 ? DeviceTypes.DeviceTypesHN212 : DeviceTypes.DeviceTypesScan);
+            */
+            if (cbReaderTypes.SelectedIndex == 0)
+            {
+                _reader.ReaderConfig.AutoReadWhenPresent = true;
+                _reader.ReaderConfig.AllowCardType = SupportCardType.SP_TYPE_ALL;
+            }
+            if (cbReaderTypes.SelectedIndex == 1)
+            {
+                _reader.ReaderConfig.AutoReadWhenPresent = false;
+                _reader.ReaderConfig.AllowCardType = SupportCardType.SP_TYPE_PASSPORT;
+            }
+            if (cbReaderTypes.SelectedIndex == 2)
+            {
+                _reader.ReaderConfig.AutoReadWhenPresent = true;
+                _reader.ReaderConfig.AllowCardType = SupportCardType.SP_TYPE_PARTY_MEMBER;
+            }
+        }
+
+        private void btnRejectCard_Click(object sender, EventArgs e)
+        {
+            // _reader.RejectCard(true, true);
+        }
+
+        private void cbAntiSpoofing_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (cbAntiSpoofing.SelectedIndex >= 0 && cbAntiSpoofing.SelectedIndex <= (int)HN212SpoofMode.HIGH)
+                _reader.FaceAntiSpoofMode = ((HN212SpoofMode)cbAntiSpoofing.SelectedIndex);
+        }
+
+        private void cbFaceCameras_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (cbFaceCameras.SelectedValue is string)
+                _reader.FaceCaptureCamId = cbFaceCameras.SelectedValue.ToString();
+        }
+
+        private void cbProcessStep_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            switch (cbProcessStep.SelectedIndex)
+            {
+                case 0:
+                    _reader.ReaderConfig.ProcessSequence = HN212ProSeq.CardOnly;
+                    break;
+                case 1:
+                    _reader.ReaderConfig.ProcessSequence = HN212ProSeq.CardThenFace;
+                    break;
+                case 2:
+                    _reader.ReaderConfig.ProcessSequence = HN212ProSeq.CardAndCapture2Side;
+                    break;
+                default:
+                    _reader.ReaderConfig.ProcessSequence = HN212ProSeq.CardOnly;
+                    break;
+            }
+        }
+
+        private void chkPaused_CheckedChanged(object sender, EventArgs e)
+        {
+            if (chkPaused.Checked)
+                _reader.Pause();
+            else
+                _reader.Resume();
+        }
+
+        private void numFaceDurationTime_ValueChanged(object sender, EventArgs e)
+        {
+        }
+
+        private void cbOcrMode_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            _reader.OcrMode = (HN212OcrMode)(cbOcrMode.SelectedIndex + 1);
+        }
+
+        private void btnTest_Click(object sender, EventArgs e)
+        {
+            _reader.Transaction(true);
+        }
+
+        private void btnCompareTest_Click(object sender, EventArgs e)
+        {
+            EKycForm frm = new EKycForm();
+            frm.ShowDialog();
+        }
+
+        private void chkPauseIntCam_CheckedChanged(object sender, EventArgs e)
+        {
+            _reader.ReqInternalCamToPause(chkPauseIntCam.Checked, chkPauseIntCam.Checked ? 5000 : 0);
+        }
+        private void btnFinger_Click(object sender, EventArgs e)
+        {
+            // Tạm tắt chức năng vân tay (xem config.EnableFingerPrint trong StartMonitor)
+            //if (!_reader.IsDeviceConnected() || !_reader.Hn212Device.IsReady())
+            //{
+            //    MessageBox.Show("Chưa kết nối thiết bị đọc thẻ hoặc thiết bị chưa sẵn sàng!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            //    return;
+            //}
+            //using FingerForm dlg = new FingerForm(_reader, _fingers);
+            //dlg.ShowDialog(this);
+            //// Ngón thu thành công được lưu ngay, nên giữ lại kể cả khi đóng form bằng Hủy
+            //_fingers = dlg.Fingers;
+        }
+
+        private void btnRefresh_Click(object sender, EventArgs e)
+        {
+            if (_reader == null || !_reader.IsDeviceConnected())
+            {
+                MessageBox.Show("Chưa kết nối thiết bị đọc thẻ!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            if (!_cardPresent)
+            {
+                MessageBox.Show("Vui lòng cắm thẻ vào thiết bị!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            ResetFormInfo();
+            ResetPortrait();
+            // Tắt đèn chip, bật lại theo kết quả lần đọc mới
+            indChipActive.State = IndicatorState.None;
+
+            SetStatusMessage("ĐANG ĐỌC THẺ...", Theme.Info, true);
+            _reader.StartReadCard("", true);
+            _stw.Restart();
+            _timer.Start();
+        }
+
+        private void ResetPortrait()
+        {
+            picCamera.Image = null;
+            btnCaptureFace.Visible = true;
+            _CamFaceBts = null;
+            lblMatchResult.Visible = false;
+            indLiveFace.Text = "Ảnh chụp trực tiếp";
+            indLiveFace.State = IndicatorState.None;
+        }
+
+        private void btnRereadcard1_Click(object sender, EventArgs e)
+        {
+            ResetFormInfo();
+            _reader.StartReadCard("", true);
+            _stw.Restart();
+            _timer.Start();
+        }
+
+        private void btnRereadcard2_Click(object sender, EventArgs e)
+        {
+            ResetFormInfo();
+            _reader.StartReadCard("", false);
+            _stw.Restart();
+            _timer.Start();
+        }
+    }
+}

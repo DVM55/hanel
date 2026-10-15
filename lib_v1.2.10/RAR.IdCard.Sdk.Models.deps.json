@@ -1,0 +1,23 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v6.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v6.0": {
+      "RAR.IdCard.Sdk.Models/1.0.0": {
+        "runtime": {
+          "RAR.IdCard.Sdk.Models.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "RAR.IdCard.Sdk.Models/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

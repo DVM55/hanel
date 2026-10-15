@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Đọc CCCD – Hanel eKYC</title>
+<style>
+  :root { --ink:#1d2a3a; --muted:#5b6b7d; --line:#d5dde6; --bg:#f3f6f9; --brand:#0b5cad; --ok:#1c7c4a; --err:#b3261e; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; display:grid; place-items:center; background:var(--bg);
+         font:16px/1.5 "Segoe UI", Roboto, Arial, sans-serif; color:var(--ink); padding:16px; }
+  main { width:100%; max-width:440px; background:#fff; border:1px solid var(--line); border-radius:10px; padding:28px; }
+  h1 { font-size:1.35rem; margin:0 0 4px; }
+  p.sub { margin:0 0 22px; color:var(--muted); }
+  label { display:block; font-weight:600; margin-bottom:6px; }
+  input { width:100%; padding:10px 12px; font-size:1rem; border:1px solid var(--line); border-radius:6px; }
+  input:focus, button:focus-visible { outline:3px solid #9cc3ee; outline-offset:1px; }
+  button { width:100%; margin-top:16px; padding:12px; font-size:1rem; font-weight:600; color:#fff;
+           background:var(--brand); border:0; border-radius:6px; cursor:pointer; }
+  button:hover { background:#094b8d; }
+  .link { margin-top:14px; font-size:.85rem; color:var(--muted); word-break:break-all; }
+  #status { margin-top:16px; min-height:1.5em; font-weight:500; }
+  .ok { color:var(--ok); } .err { color:var(--err); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Đọc căn cước công dân</h1>
+  <p class="sub">Đặt thẻ lên đầu đọc rồi bấm nút bên dưới để mở phần mềm Hanel.</p>
+
+  <label for="ref">Mã hồ sơ</label>
+  <input id="ref" value="HS001" autocomplete="off">
+
+  <button id="open" type="button">Mở phần mềm đọc thẻ</button>
+
+  <div class="link">Liên kết: <span id="preview"></span></div>
+  <div id="status" role="status"></div>
+</main>
+
+<script>
+  const SCHEME = "hanelekyc://read";
+  const refInput = document.getElementById("ref");
+  const preview  = document.getElementById("preview");
+  const status   = document.getElementById("status");
+
+  // Cho phép truyền mã qua URL: trang.html?ref=HS002  (thêm &auto=1 để tự mở)
+  const params = new URLSearchParams(location.search);
+  if (params.get("ref")) refInput.value = params.get("ref");
+
+  function buildLink() {
+    return SCHEME + "?ref=" + encodeURIComponent(refInput.value.trim());
+  }
+  function updatePreview() { preview.textContent = buildLink(); }
+
+  function openApp() {
+    if (!refInput.value.trim()) {
+      status.className = "err"; status.textContent = "Nhập mã hồ sơ trước khi mở.";
+      refInput.focus(); return;
+    }
+    status.className = ""; status.textContent = "Đang mở phần mềm…";
+
+    let left = false;
+    const onLeave = () => { left = true; };
+    window.addEventListener("blur", onLeave, { once:true });
+    document.addEventListener("visibilitychange", onLeave, { once:true });
+
+    window.location.href = buildLink();
+
+    // Nếu sau 2.5 giây trình duyệt không chuyển sang phần mềm thì báo lỗi
+    setTimeout(() => {
+      if (left) {
+        status.className = "ok"; status.textContent = "Đã mở phần mềm Hanel.";
+      } else {
+        status.className = "err";
+        status.textContent = "Không mở được. Kiểm tra phần mềm Hanel eKYC đã cài trên máy chưa.";
+      }
+    }, 2500);
+  }
+
+  refInput.addEventListener("input", updatePreview);
+  refInput.addEventListener("keydown", e => { if (e.key === "Enter") openApp(); });
+  document.getElementById("open").addEventListener("click", openApp);
+  updatePreview();
+
+  if (params.get("auto") === "1") openApp();
+</script>
+</body>
+</html>

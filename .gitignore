@@ -1,0 +1,17 @@
+# Build output
+bin/
+obj/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Visual Studio / VS Code / Rider
+.vs/
+*.user
+*.suo
+.idea/
+
+# Logs
+*.log

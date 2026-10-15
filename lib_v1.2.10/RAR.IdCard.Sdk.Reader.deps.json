@@ -1,0 +1,895 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v6.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v6.0": {
+      "RAR.IdCard.Sdk.Reader/1.0.0": {
+        "dependencies": {
+          "AForge.Video.DirectShow": "1.0.0",
+          "DirectShowLib.Standard": "2.1.0",
+          "LibUsbDotNet": "3.0.97-alpha",
+          "LibUsbDotNetF": "1.0.0",
+          "Microsoft.Extensions.DependencyInjection": "6.0.0",
+          "OpenCvSharp4": "4.8.0.20230708",
+          "OpenCvSharp4.Extensions": "4.8.0.20230708",
+          "OpenCvSharp4.runtime.win": "4.8.0.20230708",
+          "PCSC": "6.1.3",
+          "Portable.BouncyCastle": "1.9.0",
+          "Sdcb.PaddleInference.runtime.win64.mkl": "2.5.1",
+          "Sdcb.PaddleOCR": "2.7.0",
+          "Sdcb.PaddleOCR.Models.Local": "2.7.0",
+          "Serilog": "2.12.0",
+          "System.IO.Ports": "8.0.0",
+          "ViewFaceCore": "0.3.8",
+          "ViewFaceCore.Extension.SkiaSharp": "0.3.7",
+          "ZXing.Net": "0.16.10",
+          "log4net": "2.0.15",
+          "AForge.Video.DirectShow.Reference": "0.0.0.0",
+          "RAR.IdCard.Crypt": "1.0.0.0",
+          "RAR.IdCard.Models": "1.0.0.0",
+          "RAR.IdCard.Sdk.Entities": "1.0.0.0",
+          "RAR.IdCard.Sdk.Models": "1.0.0.0",
+          "RAR.IdCard.Sdk.Utils.TKCrypto": "1.0.0.0"
+        },
+        "runtime": {
+          "RAR.IdCard.Sdk.Reader.dll": {}
+        }
+      },
+      "DirectShowLib.Standard/2.1.0": {
+        "runtime": {
+          "lib/netstandard2.0/DirectShowLib.dll": {
+            "assemblyVersion": "2.1.0.0",
+            "fileVersion": "2.1.0.0"
+          }
+        }
+      },
+      "LibUsbDotNet/3.0.97-alpha": {
+        "runtime": {
+          "lib/netcoreapp3.1/LibUsbDotNet.dll": {
+            "assemblyVersion": "3.0.0.0",
+            "fileVersion": "3.0.97.42274"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/osx-x64/native/libusb-1.0.0.dylib": {
+            "rid": "osx-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/win-x64/native/libusb-1.0.dll": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "1.0.23.11397"
+          },
+          "runtimes/win-x64/native/libusb-1.0.pdb": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/win-x64/native/libusbK.dll": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "3.0.7.0"
+          },
+          "runtimes/win-x64/native/libusbK.pdb": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/win-x86/native/libusb-1.0.dll": {
+            "rid": "win-x86",
+            "assetType": "native",
+            "fileVersion": "1.0.23.11397"
+          },
+          "runtimes/win-x86/native/libusb-1.0.pdb": {
+            "rid": "win-x86",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/win-x86/native/libusbK.dll": {
+            "rid": "win-x86",
+            "assetType": "native",
+            "fileVersion": "3.0.7.0"
+          },
+          "runtimes/win-x86/native/libusbK.pdb": {
+            "rid": "win-x86",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "log4net/2.0.15": {
+        "runtime": {
+          "lib/netstandard2.0/log4net.dll": {
+            "assemblyVersion": "2.0.15.0",
+            "fileVersion": "2.0.15.0"
+          }
+        }
+      },
+      "Microsoft.Extensions.DependencyInjection/6.0.0": {
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "6.0.0"
+        },
+        "runtime": {
+          "lib/net6.0/Microsoft.Extensions.DependencyInjection.dll": {
+            "assemblyVersion": "6.0.0.0",
+            "fileVersion": "6.0.21.52210"
+          }
+        }
+      },
+      "Microsoft.Extensions.DependencyInjection.Abstractions/6.0.0": {
+        "runtime": {
+          "lib/net6.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll": {
+            "assemblyVersion": "6.0.0.0",
+            "fileVersion": "6.0.21.52210"
+          }
+        }
+      },
+      "Microsoft.Win32.SystemEvents/7.0.0": {
+        "runtime": {
+          "lib/net6.0/Microsoft.Win32.SystemEvents.dll": {
+            "assemblyVersion": "7.0.0.0",
+            "fileVersion": "7.0.22.51805"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/win/lib/net6.0/Microsoft.Win32.SystemEvents.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "7.0.0.0",
+            "fileVersion": "7.0.22.51805"
+          }
+        }
+      },
+      "OpenCvSharp4/4.8.0.20230708": {
+        "runtime": {
+          "lib/net6.0/OpenCvSharp.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "OpenCvSharp4.Extensions/4.8.0.20230708": {
+        "dependencies": {
+          "OpenCvSharp4": "4.8.0.20230708",
+          "System.Drawing.Common": "7.0.0"
+        },
+        "runtime": {
+          "lib/net6.0/OpenCvSharp.Extensions.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "OpenCvSharp4.runtime.win/4.8.0.20230708": {
+        "runtimeTargets": {
+          "runtimes/win-x64/native/OpenCvSharpExtern.dll": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/win-x64/native/opencv_videoio_ffmpeg480_64.dll": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "2023.6.0.0"
+          },
+          "runtimes/win-x86/native/OpenCvSharpExtern.dll": {
+            "rid": "win-x86",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/win-x86/native/opencv_videoio_ffmpeg480.dll": {
+            "rid": "win-x86",
+            "assetType": "native",
+            "fileVersion": "2023.6.0.0"
+          }
+        }
+      },
+      "PCSC/6.1.3": {
+        "runtime": {
+          "lib/net6.0/PCSC.dll": {
+            "assemblyVersion": "6.1.3.0",
+            "fileVersion": "6.1.3.0"
+          }
+        }
+      },
+      "Portable.BouncyCastle/1.9.0": {
+        "runtime": {
+          "lib/netstandard2.0/BouncyCastle.Crypto.dll": {
+            "assemblyVersion": "1.9.0.0",
+            "fileVersion": "1.9.0.1"
+          }
+        }
+      },
+      "runtime.linux-arm.runtime.native.System.IO.Ports/8.0.0": {
+        "runtimeTargets": {
+          "runtimes/linux-arm/native/libSystem.IO.Ports.Native.so": {
+            "rid": "linux-arm",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "runtime.linux-arm64.runtime.native.System.IO.Ports/8.0.0": {
+        "runtimeTargets": {
+          "runtimes/linux-arm64/native/libSystem.IO.Ports.Native.so": {
+            "rid": "linux-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "runtime.linux-x64.runtime.native.System.IO.Ports/8.0.0": {
+        "runtimeTargets": {
+          "runtimes/linux-x64/native/libSystem.IO.Ports.Native.so": {
+            "rid": "linux-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "runtime.native.System.IO.Ports/8.0.0": {
+        "dependencies": {
+          "runtime.linux-arm.runtime.native.System.IO.Ports": "8.0.0",
+          "runtime.linux-arm64.runtime.native.System.IO.Ports": "8.0.0",
+          "runtime.linux-x64.runtime.native.System.IO.Ports": "8.0.0",
+          "runtime.osx-arm64.runtime.native.System.IO.Ports": "8.0.0",
+          "runtime.osx-x64.runtime.native.System.IO.Ports": "8.0.0"
+        }
+      },
+      "runtime.osx-arm64.runtime.native.System.IO.Ports/8.0.0": {
+        "runtimeTargets": {
+          "runtimes/osx-arm64/native/libSystem.IO.Ports.Native.dylib": {
+            "rid": "osx-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "runtime.osx-x64.runtime.native.System.IO.Ports/8.0.0": {
+        "runtimeTargets": {
+          "runtimes/osx-x64/native/libSystem.IO.Ports.Native.dylib": {
+            "rid": "osx-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "Sdcb.Mkldnn.runtime.win64/0.19.0": {
+        "runtimeTargets": {
+          "runtimes/win-x64/native/libiomp5md.dll": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "5.0.2019.109"
+          },
+          "runtimes/win-x64/native/mklml.dll": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "Sdcb.Onnx.runtime.win64/1.11.22.423": {
+        "runtimeTargets": {
+          "runtimes/win-x64/native/onnxruntime.dll": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "1.11.22.423"
+          },
+          "runtimes/win-x64/native/onnxruntime_providers_shared.dll": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "Sdcb.Paddle2Onnx.runtime.win64/1.0.0.2": {
+        "runtimeTargets": {
+          "runtimes/win-x64/native/paddle2onnx.dll": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "Sdcb.PaddleInference/2.5.0.1": {
+        "runtime": {
+          "lib/net6.0/Sdcb.PaddleInference.dll": {
+            "assemblyVersion": "2.5.0.1",
+            "fileVersion": "2.5.0.1"
+          }
+        }
+      },
+      "Sdcb.PaddleInference.runtime.win64.mkl/2.5.1": {
+        "dependencies": {
+          "Sdcb.Mkldnn.runtime.win64": "0.19.0",
+          "Sdcb.Onnx.runtime.win64": "1.11.22.423",
+          "Sdcb.Paddle2Onnx.runtime.win64": "1.0.0.2"
+        },
+        "runtimeTargets": {
+          "runtimes/win-x64/native/mkldnn.dll": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "2.7.3.0"
+          },
+          "runtimes/win-x64/native/paddle_inference_c.dll": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "Sdcb.PaddleOCR/2.7.0": {
+        "dependencies": {
+          "OpenCvSharp4": "4.8.0.20230708",
+          "Sdcb.PaddleInference": "2.5.0.1"
+        },
+        "runtime": {
+          "lib/netstandard2.0/Sdcb.PaddleOCR.dll": {
+            "assemblyVersion": "2.7.0.0",
+            "fileVersion": "2.7.0.0"
+          }
+        }
+      },
+      "Sdcb.PaddleOCR.Models.Local/2.7.0": {
+        "dependencies": {
+          "Sdcb.PaddleOCR": "2.7.0",
+          "Sdcb.PaddleOCR.Models.LocalV3": "2.7.0",
+          "Sdcb.PaddleOCR.Models.LocalV4": "2.7.0",
+          "Sdcb.PaddleOCR.Models.Shared": "2.7.0"
+        },
+        "runtime": {
+          "lib/netstandard2.0/Sdcb.PaddleOCR.Models.Local.dll": {
+            "assemblyVersion": "2.7.0.0",
+            "fileVersion": "2.7.0.0"
+          }
+        }
+      },
+      "Sdcb.PaddleOCR.Models.LocalV3/2.7.0": {
+        "runtime": {
+          "lib/netstandard2.0/Sdcb.PaddleOCR.Models.LocalV3.dll": {
+            "assemblyVersion": "2.7.0.0",
+            "fileVersion": "2.7.0.0"
+          }
+        }
+      },
+      "Sdcb.PaddleOCR.Models.LocalV4/2.7.0": {
+        "runtime": {
+          "lib/netstandard2.0/Sdcb.PaddleOCR.Models.LocalV4.dll": {
+            "assemblyVersion": "2.7.0.0",
+            "fileVersion": "2.7.0.0"
+          }
+        }
+      },
+      "Sdcb.PaddleOCR.Models.Shared/2.7.0": {
+        "runtime": {
+          "lib/netstandard2.0/Sdcb.PaddleOCR.Models.Shared.dll": {
+            "assemblyVersion": "2.7.0.0",
+            "fileVersion": "2.7.0.0"
+          }
+        }
+      },
+      "Serilog/2.12.0": {
+        "runtime": {
+          "lib/net6.0/Serilog.dll": {
+            "assemblyVersion": "2.0.0.0",
+            "fileVersion": "2.12.0.0"
+          }
+        }
+      },
+      "SkiaSharp/2.88.0": {
+        "dependencies": {
+          "SkiaSharp.NativeAssets.Win32": "2.88.0",
+          "SkiaSharp.NativeAssets.macOS": "2.88.0"
+        },
+        "runtime": {
+          "lib/netstandard2.0/SkiaSharp.dll": {
+            "assemblyVersion": "2.88.0.0",
+            "fileVersion": "2.88.0.0"
+          }
+        }
+      },
+      "SkiaSharp.NativeAssets.Linux/2.88.0": {
+        "dependencies": {
+          "SkiaSharp": "2.88.0"
+        },
+        "runtimeTargets": {
+          "runtimes/linux-arm/native/libSkiaSharp.so": {
+            "rid": "linux-arm",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/linux-arm64/native/libSkiaSharp.so": {
+            "rid": "linux-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/linux-musl-x64/native/libSkiaSharp.so": {
+            "rid": "linux-musl-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/linux-x64/native/libSkiaSharp.so": {
+            "rid": "linux-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "SkiaSharp.NativeAssets.macOS/2.88.0": {
+        "runtimeTargets": {
+          "runtimes/osx/native/libSkiaSharp.dylib": {
+            "rid": "osx",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "SkiaSharp.NativeAssets.Win32/2.88.0": {
+        "runtimeTargets": {
+          "runtimes/win-arm64/native/libSkiaSharp.dll": {
+            "rid": "win-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/win-x64/native/libSkiaSharp.dll": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/win-x86/native/libSkiaSharp.dll": {
+            "rid": "win-x86",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "System.Drawing.Common/7.0.0": {
+        "dependencies": {
+          "Microsoft.Win32.SystemEvents": "7.0.0"
+        },
+        "runtime": {
+          "lib/net6.0/System.Drawing.Common.dll": {
+            "assemblyVersion": "7.0.0.0",
+            "fileVersion": "7.0.22.51805"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/win/lib/net6.0/System.Drawing.Common.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "7.0.0.0",
+            "fileVersion": "7.0.22.51805"
+          }
+        }
+      },
+      "System.IO.Ports/8.0.0": {
+        "dependencies": {
+          "runtime.native.System.IO.Ports": "8.0.0"
+        },
+        "runtime": {
+          "lib/net6.0/System.IO.Ports.dll": {
+            "assemblyVersion": "8.0.0.0",
+            "fileVersion": "8.0.23.53103"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/unix/lib/net6.0/System.IO.Ports.dll": {
+            "rid": "unix",
+            "assetType": "runtime",
+            "assemblyVersion": "8.0.0.0",
+            "fileVersion": "8.0.23.53103"
+          },
+          "runtimes/win/lib/net6.0/System.IO.Ports.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "8.0.0.0",
+            "fileVersion": "8.0.23.53103"
+          }
+        }
+      },
+      "ViewFaceCore/0.3.8": {
+        "runtime": {
+          "lib/net6.0/ViewFaceCore.dll": {
+            "assemblyVersion": "0.3.8.0",
+            "fileVersion": "0.3.8.0"
+          }
+        }
+      },
+      "ViewFaceCore.Extension.SkiaSharp/0.3.7": {
+        "dependencies": {
+          "SkiaSharp": "2.88.0",
+          "SkiaSharp.NativeAssets.Linux": "2.88.0",
+          "SkiaSharp.NativeAssets.Win32": "2.88.0",
+          "ViewFaceCore": "0.3.8"
+        },
+        "runtime": {
+          "lib/netstandard2.0/ViewFaceCore.Extension.SkiaSharp.dll": {
+            "assemblyVersion": "0.3.7.0",
+            "fileVersion": "0.3.7.0"
+          }
+        }
+      },
+      "ZXing.Net/0.16.10": {
+        "runtime": {
+          "lib/net6.0/zxing.dll": {
+            "assemblyVersion": "0.16.10.0",
+            "fileVersion": "0.16.10.0"
+          }
+        }
+      },
+      "AForge.Video.DirectShow/1.0.0": {
+        "runtime": {
+          "AForge.Video.DirectShow.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "LibUsbDotNetF/1.0.0": {
+        "runtime": {
+          "LibUsbDotNetF.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.63878"
+          }
+        }
+      },
+      "AForge.Video.DirectShow.Reference/0.0.0.0": {
+        "runtime": {
+          "AForge.Video.DirectShow.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "RAR.IdCard.Crypt/1.0.0.0": {
+        "runtime": {
+          "RAR.IdCard.Crypt.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "RAR.IdCard.Models/1.0.0.0": {
+        "runtime": {
+          "RAR.IdCard.Models.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "RAR.IdCard.Sdk.Entities/1.0.0.0": {
+        "runtime": {
+          "RAR.IdCard.Sdk.Entities.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "RAR.IdCard.Sdk.Models/1.0.0.0": {
+        "runtime": {
+          "RAR.IdCard.Sdk.Models.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "RAR.IdCard.Sdk.Utils.TKCrypto/1.0.0.0": {
+        "runtime": {
+          "RAR.IdCard.Sdk.Utils.TKCrypto.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "RAR.IdCard.Sdk.Reader/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "DirectShowLib.Standard/2.1.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-XACY5rMew2SQdPALsNaj6I3qHp9ZJ7STJhrc40x9JZXTyuLNpXte4f5nlG9yu8dez6ONJZf2ykGA2YoNT3/O/A==",
+      "path": "directshowlib.standard/2.1.0",
+      "hashPath": "directshowlib.standard.2.1.0.nupkg.sha512"
+    },
+    "LibUsbDotNet/3.0.97-alpha": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-r2Bw8Co7v/QT5S8XmbghEqeRDXJuWZg+ph+uwHT1PbwJktvtlER8/o5vf2Xh4CSplKDunWhLgMHh4n2LDFRAvA==",
+      "path": "libusbdotnet/3.0.97-alpha",
+      "hashPath": "libusbdotnet.3.0.97-alpha.nupkg.sha512"
+    },
+    "log4net/2.0.15": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-GahnO9ZgFka+xYcFwAfIFjW+k86P2nxFoaEpH6t3v4hiGj7tv2ksVZphxCVIHmJxoySS0HeU3dgCW+bSCcfD0A==",
+      "path": "log4net/2.0.15",
+      "hashPath": "log4net.2.0.15.nupkg.sha512"
+    },
+    "Microsoft.Extensions.DependencyInjection/6.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-k6PWQMuoBDGGHOQTtyois2u4AwyVcIwL2LaSLlTZQm2CYcJ1pxbt6jfAnpWmzENA/wfrYRI/X9DTLoUkE4AsLw==",
+      "path": "microsoft.extensions.dependencyinjection/6.0.0",
+      "hashPath": "microsoft.extensions.dependencyinjection.6.0.0.nupkg.sha512"
+    },
+    "Microsoft.Extensions.DependencyInjection.Abstractions/6.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-xlzi2IYREJH3/m6+lUrQlujzX8wDitm4QGnUu6kUXTQAWPuZY8i+ticFJbzfqaetLA6KR/rO6Ew/HuYD+bxifg==",
+      "path": "microsoft.extensions.dependencyinjection.abstractions/6.0.0",
+      "hashPath": "microsoft.extensions.dependencyinjection.abstractions.6.0.0.nupkg.sha512"
+    },
+    "Microsoft.Win32.SystemEvents/7.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-2nXPrhdAyAzir0gLl8Yy8S5Mnm/uBSQQA7jEsILOS1MTyS7DbmV1NgViMtvV1sfCD1ebITpNwb1NIinKeJgUVQ==",
+      "path": "microsoft.win32.systemevents/7.0.0",
+      "hashPath": "microsoft.win32.systemevents.7.0.0.nupkg.sha512"
+    },
+    "OpenCvSharp4/4.8.0.20230708": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-MmZqvNUJuTUWQfkyXN1NOxJjx6JNfaedMOnY0dAdP5zgaKMAsxwwX5pkZl/F40JheSo3oMJhI7nhDC3kh7/ISQ==",
+      "path": "opencvsharp4/4.8.0.20230708",
+      "hashPath": "opencvsharp4.4.8.0.20230708.nupkg.sha512"
+    },
+    "OpenCvSharp4.Extensions/4.8.0.20230708": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-nMX2ZFI+cAIp7q2UoaHFSzBD9xJgr/TyZ9dDOuDS0K2BNCdOYqT8TbXWIGCIXpcLZLn2seoy5r4ZlGaJsyREYg==",
+      "path": "opencvsharp4.extensions/4.8.0.20230708",
+      "hashPath": "opencvsharp4.extensions.4.8.0.20230708.nupkg.sha512"
+    },
+    "OpenCvSharp4.runtime.win/4.8.0.20230708": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-V9zbVQXazSSoEG04nF1KEkxfY62WMQAcKAlDe7xgkNErY7WQZzEcj8dMEuHXQMaDr45jPvrJi50SQroi+w4wNw==",
+      "path": "opencvsharp4.runtime.win/4.8.0.20230708",
+      "hashPath": "opencvsharp4.runtime.win.4.8.0.20230708.nupkg.sha512"
+    },
+    "PCSC/6.1.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-Owbrhae5DAFUgg1gKiRNPjoG3Lr8FdsmlZl6RZnqs+QlWjZQr/2gzY6zYOiBa3L9H1UhMCqxL4I/yvaldelP/g==",
+      "path": "pcsc/6.1.3",
+      "hashPath": "pcsc.6.1.3.nupkg.sha512"
+    },
+    "Portable.BouncyCastle/1.9.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-eZZBCABzVOek+id9Xy04HhmgykF0wZg9wpByzrWN7q8qEI0Qen9b7tfd7w8VA3dOeesumMG7C5ZPy0jk7PSRHw==",
+      "path": "portable.bouncycastle/1.9.0",
+      "hashPath": "portable.bouncycastle.1.9.0.nupkg.sha512"
+    },
+    "runtime.linux-arm.runtime.native.System.IO.Ports/8.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-gK720fg6HemDg8sXcfy+xCMZ9+hF78Gc7BmREbmkS4noqlu1BAr9qZtuWGhLzFjBfgecmdtl4+SYVwJ1VneZBQ==",
+      "path": "runtime.linux-arm.runtime.native.system.io.ports/8.0.0",
+      "hashPath": "runtime.linux-arm.runtime.native.system.io.ports.8.0.0.nupkg.sha512"
+    },
+    "runtime.linux-arm64.runtime.native.System.IO.Ports/8.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-KYG6/3ojhEWbb3FwQAKgGWPHrY+HKUXXdVjJlrtyCLn3EMcNTaNcPadb2c0ndQzixZSmAxZKopXJr0nLwhOrpQ==",
+      "path": "runtime.linux-arm64.runtime.native.system.io.ports/8.0.0",
+      "hashPath": "runtime.linux-arm64.runtime.native.system.io.ports.8.0.0.nupkg.sha512"
+    },
+    "runtime.linux-x64.runtime.native.System.IO.Ports/8.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-Wnw5vhA4mgGbIFoo6l9Fk3iEcwRSq49a1aKwJgXUCUtEQLCSUDjTGSxqy/oMUuOyyn7uLHsH8KgZzQ1y3lReiQ==",
+      "path": "runtime.linux-x64.runtime.native.system.io.ports/8.0.0",
+      "hashPath": "runtime.linux-x64.runtime.native.system.io.ports.8.0.0.nupkg.sha512"
+    },
+    "runtime.native.System.IO.Ports/8.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-Ee7Sz5llLpTgyKIWzKI/GeuRSbFkOABgJRY00SqTY0OkTYtkB+9l5rFZfE7fxPA3c22RfytCBYkUdAkcmwMjQg==",
+      "path": "runtime.native.system.io.ports/8.0.0",
+      "hashPath": "runtime.native.system.io.ports.8.0.0.nupkg.sha512"
+    },
+    "runtime.osx-arm64.runtime.native.System.IO.Ports/8.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-rbUBLAaFW9oVkbsb0+XSrAo2QdhBeAyzLl5KQ6Oci9L/u626uXGKInsVJG6B9Z5EO8bmplC8tsMiaHK8wOBZ+w==",
+      "path": "runtime.osx-arm64.runtime.native.system.io.ports/8.0.0",
+      "hashPath": "runtime.osx-arm64.runtime.native.system.io.ports.8.0.0.nupkg.sha512"
+    },
+    "runtime.osx-x64.runtime.native.System.IO.Ports/8.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-IcfB4jKtM9pkzP9OpYelEcUX1MiDt0IJPBh3XYYdEISFF+6Mc+T8WWi0dr9wVh1gtcdVjubVEIBgB8BHESlGfQ==",
+      "path": "runtime.osx-x64.runtime.native.system.io.ports/8.0.0",
+      "hashPath": "runtime.osx-x64.runtime.native.system.io.ports.8.0.0.nupkg.sha512"
+    },
+    "Sdcb.Mkldnn.runtime.win64/0.19.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-Dbjg2jje+ZV/PTBVsMoso2gAD8jMlwUdv/0U7ySSeHEKYzXLy83MD9VUZXIhorQLz22x2cnqLGhIxPNjAeVt3A==",
+      "path": "sdcb.mkldnn.runtime.win64/0.19.0",
+      "hashPath": "sdcb.mkldnn.runtime.win64.0.19.0.nupkg.sha512"
+    },
+    "Sdcb.Onnx.runtime.win64/1.11.22.423": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-wAiAxPES9i6qiRvSV8fgaJvU0+moSkHWuIprUJK1A/1RDAfPZBf1WRh1RkxTdmb4Jnd3vEF7DbbM+vEIqOmNGw==",
+      "path": "sdcb.onnx.runtime.win64/1.11.22.423",
+      "hashPath": "sdcb.onnx.runtime.win64.1.11.22.423.nupkg.sha512"
+    },
+    "Sdcb.Paddle2Onnx.runtime.win64/1.0.0.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-WnaXPbkb9HzcBLz1W0zwaheVd5A2Sq7PR64D3uGJZJ5DNziV+nHIgphJgiSoDi3cwuY9lXIMeUHGXbmT7Upmhw==",
+      "path": "sdcb.paddle2onnx.runtime.win64/1.0.0.2",
+      "hashPath": "sdcb.paddle2onnx.runtime.win64.1.0.0.2.nupkg.sha512"
+    },
+    "Sdcb.PaddleInference/2.5.0.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-mhTFsVo5U06agc31pA0Wb5kX0H328Dqe9985G6D4aGbU0GXzET4ZUyzFgt8jGD1drFezMY4PdZH63lhMTzpnpQ==",
+      "path": "sdcb.paddleinference/2.5.0.1",
+      "hashPath": "sdcb.paddleinference.2.5.0.1.nupkg.sha512"
+    },
+    "Sdcb.PaddleInference.runtime.win64.mkl/2.5.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-wwiPGtO42Jh2++57aPI8Fx3cJYd24Tu8qUmdk/KBdYFcf2ePBQPa0EDUgI5o1ss56QKBtuawQn1mxDV/8GO7gQ==",
+      "path": "sdcb.paddleinference.runtime.win64.mkl/2.5.1",
+      "hashPath": "sdcb.paddleinference.runtime.win64.mkl.2.5.1.nupkg.sha512"
+    },
+    "Sdcb.PaddleOCR/2.7.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-/1fQi6hmeVScV+yMMQJ06jonk9bdXqQXAcavdExDoU+uhLM3mYO3/KlHGu8iXDJ7FAE92ctF5DhaYJrYIQ/8SA==",
+      "path": "sdcb.paddleocr/2.7.0",
+      "hashPath": "sdcb.paddleocr.2.7.0.nupkg.sha512"
+    },
+    "Sdcb.PaddleOCR.Models.Local/2.7.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-/qARARoqGy4YWb/drm/gOFbF3M4bejA9LBGP4TRD6unvefOxokzTW0YI2s4fqhaaAOZNObnYgaE1/q+SmP1NQw==",
+      "path": "sdcb.paddleocr.models.local/2.7.0",
+      "hashPath": "sdcb.paddleocr.models.local.2.7.0.nupkg.sha512"
+    },
+    "Sdcb.PaddleOCR.Models.LocalV3/2.7.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-eqyTyyfOz+cfUvCc7jk1z1eOjUlgmNPyAZzDUqFRv+gs6g2aTdcd0qlWupaAgSDyHOstU/C95PS5hG9jQGakQA==",
+      "path": "sdcb.paddleocr.models.localv3/2.7.0",
+      "hashPath": "sdcb.paddleocr.models.localv3.2.7.0.nupkg.sha512"
+    },
+    "Sdcb.PaddleOCR.Models.LocalV4/2.7.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-iKGb/qSPDHca5OXIKWQJqhVFajlolF01EV5PKjD4a8Djv+xXO/y07mBDRnUwj7zSjvmJjMpqiI6suEhGYDMvUA==",
+      "path": "sdcb.paddleocr.models.localv4/2.7.0",
+      "hashPath": "sdcb.paddleocr.models.localv4.2.7.0.nupkg.sha512"
+    },
+    "Sdcb.PaddleOCR.Models.Shared/2.7.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-1UlN5XOhO+a5mR82eE5RoCjB2tS4U8SKMnMk1AnQ+HphqcYwo3fHYSmEnxnpGe3/iU2hjRDDFRgOaf339T5gKg==",
+      "path": "sdcb.paddleocr.models.shared/2.7.0",
+      "hashPath": "sdcb.paddleocr.models.shared.2.7.0.nupkg.sha512"
+    },
+    "Serilog/2.12.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-xaiJLIdu6rYMKfQMYUZgTy8YK7SMZjB4Yk50C/u//Z4OsvxkUfSPJy4nknfvwAC34yr13q7kcyh4grbwhSxyZg==",
+      "path": "serilog/2.12.0",
+      "hashPath": "serilog.2.12.0.nupkg.sha512"
+    },
+    "SkiaSharp/2.88.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-OKBrwZ4TdRjPjl2tVFbcakyNZBI9zBGFzZKr6DbhgybVpjiBMvIQbbbN4Wfl0lts0TJ5AwHDr6EO7zusJJOamQ==",
+      "path": "skiasharp/2.88.0",
+      "hashPath": "skiasharp.2.88.0.nupkg.sha512"
+    },
+    "SkiaSharp.NativeAssets.Linux/2.88.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-AtMW2DzKV4BmVlzBwvxPkcJWI7o1UIDaJ5jN0XUxB9oMdYY6m4oX+k+m0RBAM9yQacf3F8galoPCxsUjA+VH+g==",
+      "path": "skiasharp.nativeassets.linux/2.88.0",
+      "hashPath": "skiasharp.nativeassets.linux.2.88.0.nupkg.sha512"
+    },
+    "SkiaSharp.NativeAssets.macOS/2.88.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-tfcr1Bnye1lsBbsskqtlkZrFDBZfIEfJoGzJ6nnJF1sSDs8zzdiuL7PjEUDEh5iHb6Wbc0la9f/OIPnUcW7KFg==",
+      "path": "skiasharp.nativeassets.macos/2.88.0",
+      "hashPath": "skiasharp.nativeassets.macos.2.88.0.nupkg.sha512"
+    },
+    "SkiaSharp.NativeAssets.Win32/2.88.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-R//VHCO/FTBtDMyYTzazuqLU8QOczapgf9FIC6Hw2SodP79CYu27+fdGS0fL9bt1qKCCitlI22QWSniPLG8YJg==",
+      "path": "skiasharp.nativeassets.win32/2.88.0",
+      "hashPath": "skiasharp.nativeassets.win32.2.88.0.nupkg.sha512"
+    },
+    "System.Drawing.Common/7.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-KIX+oBU38pxkKPxvLcLfIkOV5Ien8ReN78wro7OF5/erwcmortzeFx+iBswlh2Vz6gVne0khocQudGwaO1Ey6A==",
+      "path": "system.drawing.common/7.0.0",
+      "hashPath": "system.drawing.common.7.0.0.nupkg.sha512"
+    },
+    "System.IO.Ports/8.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-MaiPbx2/QXZc62gm/DrajRrGPG1lU4m08GWMoWiymPYM+ba4kfACp2PbiYpqJ4QiFGhHD00zX3RoVDTucjWe9g==",
+      "path": "system.io.ports/8.0.0",
+      "hashPath": "system.io.ports.8.0.0.nupkg.sha512"
+    },
+    "ViewFaceCore/0.3.8": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-UGMTMIwvpHWyJ8m4S8J1cze/CXC4xgX6dXe6w+UXy0/H186JzhMAFoOEOGom+DH7uMgBTko5y19VbsPkbkFz6A==",
+      "path": "viewfacecore/0.3.8",
+      "hashPath": "viewfacecore.0.3.8.nupkg.sha512"
+    },
+    "ViewFaceCore.Extension.SkiaSharp/0.3.7": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-pcnMV/tWTTcroGzpbNGpcUMCJX5EWjIHSlLPR/dwOXy48MSgsBmq5mrxAesj+Ky9Nld/XFx/xZXSZiNZUMQxKg==",
+      "path": "viewfacecore.extension.skiasharp/0.3.7",
+      "hashPath": "viewfacecore.extension.skiasharp.0.3.7.nupkg.sha512"
+    },
+    "ZXing.Net/0.16.10": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-9avtcn21T7Ndcl8PQ1LHR7/wEoCruX1QKKHvO6zBPTsDW9IdvR5vKOmd618AY+DtDWZz8NaFDTkpbZdgaF4l4w==",
+      "path": "zxing.net/0.16.10",
+      "hashPath": "zxing.net.0.16.10.nupkg.sha512"
+    },
+    "AForge.Video.DirectShow/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "LibUsbDotNetF/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "AForge.Video.DirectShow.Reference/0.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "RAR.IdCard.Crypt/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "RAR.IdCard.Models/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "RAR.IdCard.Sdk.Entities/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "RAR.IdCard.Sdk.Models/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "RAR.IdCard.Sdk.Utils.TKCrypto/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
