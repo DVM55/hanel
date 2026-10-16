@@ -996,7 +996,7 @@ namespace IdCard.Hanel
                     try
                     {
                         var (requestId, sid, token) = await WebhookClient.SendNfcInfoAsync(
-                            _settings.WebhookUrl, _settings.WebhookUser, _settings.GetWebhookPassword(), cardData);
+                            _settings.WebhookUrl, _settings.WebhookUser, _settings.GetWebhookPassword(), _settings.Username, cardData);
                         sessionId = sid;
                         v1Token = token;
                         WriteLog($"SendNfcInfo: requestId={requestId}, sessionId={sessionId}");

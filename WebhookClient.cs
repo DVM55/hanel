@@ -32,13 +32,11 @@ namespace IdCard.Hanel
     internal static class WebhookClient
     {
         private const string AuthenticatePath = "/api/authenticate";
-        private const string SendDataPath = "/api/nfc-scanner/send-data-registerCert";
+        private const string SendDataPath = "/api/certificate-orders/register-certificate-order-with-nfc-info";
         private const string GetCertificateRegisterPath = "/api/certificate-orders/get-certificate-register";
         private const string SendSignImagePath = "/api/certificate-orders/send-sign-image";
         private const string SendIdentificationPath = "/api/webhook/send-identification";
         private const string Nationality = "VNM";
-        /// <summary>Loại giấy tờ gửi lên webhook v1.</summary>
-        private const string DocumentType = "ID";
         /// <summary>policyStatus khi người dùng đã tích đồng ý điều khoản.</summary>
         private const string PolicyStatusAccepted = "ACCEPTED";
         /// <summary>Định dạng acceptTime theo Constants.DatePattern.DateTime phía server.</summary>
@@ -64,7 +62,7 @@ namespace IdCard.Hanel
         /// và token để gọi tiếp các API khác (lấy phiếu đăng ký...).
         /// </summary>
         public static async Task<(string? RequestId, string? SessionId, string Token)> SendNfcInfoAsync(
-            string webhookUrl, string user, string password, WebhookCardData d)
+            string webhookUrl, string user, string password, string username, WebhookCardData d)
         {
             string baseUrl = webhookUrl.TrimEnd('/');
             var auth = await SendApiAsync(HttpMethod.Post, baseUrl + AuthenticatePath, new { username = user, password }, null, V1SuccessStatus);
@@ -72,11 +70,10 @@ namespace IdCard.Hanel
             if (string.IsNullOrEmpty(token))
                 throw new ApiException("Máy chủ không trả về token đăng nhập.");
 
-            string id = Guid.NewGuid().ToString();
-            var payload = await BuildNfcInfoPayloadAsync(id, d);
+            var payload = await BuildNfcInfoPayloadAsync(username, d);
             var data = await SendApiAsync(HttpMethod.Post, baseUrl + SendDataPath, payload, token, V1SuccessStatus);
             string? Str(string name) => data.ValueKind == JsonValueKind.Object && data.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
-            return (Str("requestId") ?? id, Str("sessionId"), token);
+            return (Str("requestId"), Str("sessionId"), token);
         }
 
         /// <summary>
@@ -129,38 +126,48 @@ namespace IdCard.Hanel
             _ => "Không kết nối được tới máy chủ."
         };
 
-        private static async Task<object> BuildNfcInfoPayloadAsync(string id, WebhookCardData d)
+        private static async Task<object> BuildNfcInfoPayloadAsync(string username, WebhookCardData d)
         {
             var dg13 = d.Card.Dg13File!;
             string ip = await GetPublicIpAsync();
 
             return new
             {
-                id,
+                username,
                 deviceId = d.DeviceId,
-                type = DocumentType,
                 number = dg13.DocumentNumber,
                 name = dg13.Name,
                 dob = dg13.DateOfBirth,
                 sex = ToSexCode(dg13.Sex),
                 nationality = Nationality,
                 doe = dg13.ExpiredDate,
-                poo = dg13.Hometown,
+                registerDate = dg13.IssueDate,
                 por = dg13.Address,
+                poo = dg13.Hometown,
                 religion = dg13.Religion,
                 nation = dg13.Nation,
-                registerDate = dg13.IssueDate,
                 father = dg13.FatherName,
                 mother = dg13.MotherName,
+                couple = dg13.PartnerName,
+                identity = dg13.PreviousNumber,
+                symbol = dg13.Character,
                 mrz = d.Card.Dg1File?.Mrz ?? "",
+                sodDg = d.Card.DSCert,
                 nfcImg = Convert.ToBase64String(d.ChipFace),
                 faceImg = d.CamFace != null ? Convert.ToBase64String(d.CamFace) : "",
-                policyStatus = PolicyStatusAccepted,
-                acceptTime = DateTime.Now.ToString(AcceptTimeFormat, CultureInfo.InvariantCulture),
-                device = Environment.MachineName,
-                ip,
+                // Tạm thời chưa gửi các trường này
+                extraInfo = (string?)null,
+                ocrBackImg = (string?)null,
+                ocrFrontImg = (string?)null,
+                policyAggrement = new
+                {
+                    policyStatus = PolicyStatusAccepted,
+                    acceptTime = DateTime.Now.ToString(AcceptTimeFormat, CultureInfo.InvariantCulture),
+                    device = Environment.MachineName,
+                    ip
+                },
                 phone = d.Phone,
-                email = d.Email
+                mail = d.Email
             };
         }
 
