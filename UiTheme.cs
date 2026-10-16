@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.ComponentModel;
 using System.Drawing.Drawing2D;
 
@@ -278,6 +279,399 @@ namespace IdCard.Hanel
             if (disposing)
                 _timer.Dispose();
             base.Dispose(disposing);
+        }
+    }
+
+    /// <summary>
+    /// Ô nhập liệu dạng thẻ: nền trắng bo góc, icon bên trái, nút xoá bên phải,
+    /// viền xanh khi đang nhập, viền đỏ kèm thông báo lỗi trong ô khi <see cref="ErrorText"/> có giá trị.
+    /// </summary>
+    public class InputBox : Control
+    {
+        private readonly TextBox _box = new() { BorderStyle = BorderStyle.None, BackColor = Color.White };
+        private string _icon = "";
+        private string _errorText = "";
+        private bool _hover, _hoverClear;
+
+        public InputBox()
+        {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
+                     ControlStyles.ResizeRedraw | ControlStyles.UserPaint | ControlStyles.SupportsTransparentBackColor, true);
+            ForeColor = Theme.Navy;
+            Cursor = Cursors.IBeam;
+            _box.ForeColor = Theme.Navy;
+            _box.TextChanged += (s, e) => { ErrorText = ""; Invalidate(); OnTextChanged(e); };
+            _box.GotFocus += (s, e) => Invalidate();
+            _box.LostFocus += (s, e) => { Invalidate(); OnLeave(e); };
+            _box.KeyPress += (s, e) => OnKeyPress(e);
+            _box.MouseEnter += (s, e) => { _hover = true; Invalidate(); };
+            _box.MouseLeave += (s, e) => { _hover = ClientRectangle.Contains(PointToClient(MousePosition)); Invalidate(); };
+            Controls.Add(_box);
+        }
+
+        /// <summary>Ký tự icon trong font Segoe MDL2 Assets.</summary>
+        [DefaultValue("")]
+        [Category("Appearance")]
+        public string Icon
+        {
+            get => _icon;
+            set { _icon = value ?? ""; PerformLayout(); Invalidate(); }
+        }
+
+        [DefaultValue("")]
+        [Category("Appearance")]
+        public string Placeholder
+        {
+            get => _box.PlaceholderText;
+            set => _box.PlaceholderText = value ?? "";
+        }
+
+        [DefaultValue(32767)]
+        [Category("Behavior")]
+        public int MaxLength
+        {
+            get => _box.MaxLength;
+            set => _box.MaxLength = value;
+        }
+
+        /// <summary>Thông báo lỗi; khác rỗng thì viền đỏ và hiện lỗi ở bên phải ô.</summary>
+        [DefaultValue("")]
+        [Category("Appearance")]
+        public string ErrorText
+        {
+            get => _errorText;
+            set
+            {
+                value ??= "";
+                if (_errorText == value)
+                    return;
+                _errorText = value;
+                PerformLayout();
+                Invalidate();
+            }
+        }
+
+        [AllowNull]
+        public override string Text
+        {
+            get => _box.Text;
+            set => _box.Text = value ?? "";
+        }
+
+        public int SelectionStart => _box.SelectionStart;
+
+        protected override void OnFontChanged(EventArgs e)
+        {
+            base.OnFontChanged(e);
+            _box.Font = Font;
+            _errorFont?.Dispose();
+            _errorFont = null;
+            PerformLayout();
+        }
+
+        private float K => DeviceDpi / 96f;
+        private bool HasError => _errorText.Length > 0;
+        private Rectangle BoxRect => new(0, 0, Width - 1, Height - 1);
+        private int ErrorWidth => HasError ? TextRenderer.MeasureText(_errorText, ErrorFont).Width + (int)(8 * K) : 0;
+        private Font? _errorFont;
+        private Font ErrorFont => _errorFont ??= new Font(Font.FontFamily, 9F, FontStyle.Regular);
+        private int IconWidth => _icon.Length > 0 ? (int)(40 * K) : (int)(14 * K);
+        private Rectangle ClearRect
+        {
+            get
+            {
+                int w = (int)(34 * K);
+                var b = BoxRect;
+                return new Rectangle(b.Right - w, b.Y, w, b.Height);
+            }
+        }
+
+        protected override void OnLayout(LayoutEventArgs e)
+        {
+            base.OnLayout(e);
+            var b = BoxRect;
+            int x = IconWidth;
+            int w = Math.Max(0, ClearRect.X - ErrorWidth - x);
+            _box.SetBounds(x, b.Y + (b.Height - _box.Height) / 2, w, _box.Height);
+        }
+
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            base.OnMouseDown(e);
+            if (_box.TextLength > 0 && ClearRect.Contains(e.Location))
+                _box.Clear();
+            _box.Focus();
+            _box.SelectionStart = _box.TextLength;
+        }
+
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+            bool over = _box.TextLength > 0 && ClearRect.Contains(e.Location);
+            Cursor = over ? Cursors.Hand : Cursors.IBeam;
+            if (!_hover || over != _hoverClear)
+            {
+                _hover = true;
+                _hoverClear = over;
+                Invalidate();
+            }
+        }
+
+        protected override void OnMouseLeave(EventArgs e)
+        {
+            base.OnMouseLeave(e);
+            _hover = _box.ClientRectangle.Contains(_box.PointToClient(MousePosition));
+            _hoverClear = false;
+            Invalidate();
+        }
+
+        protected override void OnGotFocus(EventArgs e)
+        {
+            base.OnGotFocus(e);
+            _box.Focus();
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            g.Clear(Parent?.BackColor ?? Theme.Surface);
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            float k = K;
+            bool focused = _box.Focused;
+            var b = BoxRect;
+
+            Color border = HasError ? Theme.Danger
+                : focused ? Theme.Primary
+                : _hover ? Color.FromArgb(160, 176, 196)
+                : Color.FromArgb(203, 213, 225);
+            float bw = (focused || HasError ? 2f : 1f) * k;
+
+            // Quầng sáng nhẹ quanh ô khi đang nhập
+            if (focused)
+            {
+                var glow = new RectangleF(b.X + 1, b.Y + 1, b.Width - 2, b.Height - 2);
+                using var gp = Theme.RoundedRect(glow, 8 * k);
+                using var gpen = new Pen(Color.FromArgb(40, HasError ? Theme.Danger : Theme.Primary), 4 * k);
+                g.DrawPath(gpen, gp);
+            }
+
+            var inner = new RectangleF(b.X + bw / 2 + 1, b.Y + bw / 2 + 1, b.Width - bw - 2, b.Height - bw - 2);
+            using (var path = Theme.RoundedRect(inner, 7 * k))
+            {
+                using (var fill = new SolidBrush(Color.White))
+                    g.FillPath(fill, path);
+                using var pen = new Pen(border, bw);
+                g.DrawPath(pen, path);
+            }
+
+            if (_icon.Length > 0)
+            {
+                using var iconFont = new Font("Segoe MDL2 Assets", Font.Size, FontStyle.Regular);
+                var iconRect = new Rectangle(b.X + (int)(4 * k), b.Y, IconWidth - (int)(4 * k), b.Height);
+                TextRenderer.DrawText(g, _icon, iconFont, iconRect, HasError ? Theme.Danger : focused ? Theme.Primary : Theme.TextMuted,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+            }
+
+            if (_box.TextLength > 0)
+            {
+                var cr = ClearRect;
+                float d = 20 * k;
+                var circle = new RectangleF(cr.X + (cr.Width - d) / 2f, cr.Y + (cr.Height - d) / 2f, d, d);
+                if (_hoverClear)
+                    using (var hb = new SolidBrush(Color.FromArgb(232, 241, 251))) g.FillEllipse(hb, circle);
+                using var xp = new Pen(_hoverClear ? Theme.Primary : Color.FromArgb(148, 163, 184), 1.6f * k) { StartCap = LineCap.Round, EndCap = LineCap.Round };
+                float a = d * 0.34f, z = d * 0.66f;
+                g.DrawLine(xp, circle.X + a, circle.Y + a, circle.X + z, circle.Y + z);
+                g.DrawLine(xp, circle.X + z, circle.Y + a, circle.X + a, circle.Y + z);
+            }
+
+            if (HasError)
+            {
+                var cr = ClearRect;
+                int ew = ErrorWidth;
+                var er = new Rectangle(cr.X - ew, b.Y, ew, b.Height);
+                TextRenderer.DrawText(g, _errorText, ErrorFont, er, Theme.Danger,
+                    TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Nhãn có phần đuôi khác màu, ví dụ dấu * bắt buộc màu đỏ sau tên trường.
+    /// </summary>
+    public class SuffixLabel : Label
+    {
+        private string _suffix = "";
+
+        [DefaultValue("")]
+        [Category("Appearance")]
+        public string Suffix
+        {
+            get => _suffix;
+            set { _suffix = value ?? ""; Invalidate(); }
+        }
+
+        [Category("Appearance")]
+        public Color SuffixColor { get; set; } = Theme.Danger;
+
+        [DefaultValue(false)]
+        [Category("Appearance")]
+        public bool SuffixRegular { get; set; }
+
+        /// <summary>Kiểu tiêu đề mục: có vạch nhấn bên trái.</summary>
+        [DefaultValue(false)]
+        [Category("Appearance")]
+        public bool Heading { get; set; }
+
+        public SuffixLabel()
+        {
+            SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            var flags = TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine;
+            var r = ClientRectangle;
+            if (Heading)
+            {
+                float k = DeviceDpi / 96f;
+                int barH = (int)(18 * k);
+                using (var accent = new SolidBrush(Theme.Primary))
+                    g.FillRectangle(accent, 0, (Height - barH) / 2, (int)(4 * k), barH);
+                int indent = (int)(14 * k);
+                r = new Rectangle(indent, 0, Width - indent, Height);
+            }
+            int textW = TextRenderer.MeasureText(g, Text, Font, r.Size, flags).Width;
+            TextRenderer.DrawText(g, Text, Font, r, ForeColor, flags | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+            if (_suffix.Length == 0 || textW >= r.Width)
+                return;
+            using var suffixFont = SuffixRegular ? new Font(Font, FontStyle.Regular) : new Font(Font, Font.Style);
+            var sr = new Rectangle(r.X + textW, r.Y, r.Width - textW, r.Height);
+            TextRenderer.DrawText(g, _suffix, suffixFont, sr, SuffixColor, flags | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+        }
+    }
+
+    /// <summary>
+    /// Ô tích chọn kèm dòng chữ; phần đặt trong [ ] của Text được tô màu <see cref="HighlightColor"/>.
+    /// </summary>
+    public class ConsentCheck : Control
+    {
+        private bool _checked;
+        private bool _invalid;
+        private bool _hover;
+
+        public event EventHandler? CheckedChanged;
+
+        public ConsentCheck()
+        {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw |
+                     ControlStyles.UserPaint | ControlStyles.SupportsTransparentBackColor | ControlStyles.Selectable, true);
+            ForeColor = Theme.TextPrimary;
+            Cursor = Cursors.Hand;
+            TabStop = true;
+        }
+
+        [DefaultValue(false)]
+        [Category("Behavior")]
+        public bool Checked
+        {
+            get => _checked;
+            set
+            {
+                if (_checked == value)
+                    return;
+                _checked = value;
+                if (value)
+                    _invalid = false;
+                Invalidate();
+                CheckedChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        /// <summary>Viền ô tích màu đỏ khi bắt buộc chọn mà chưa chọn.</summary>
+        [DefaultValue(false)]
+        [Category("Appearance")]
+        public bool Invalid
+        {
+            get => _invalid;
+            set { _invalid = value; Invalidate(); }
+        }
+
+        [Category("Appearance")]
+        public Color HighlightColor { get; set; } = Theme.Danger;
+
+        protected override void OnTextChanged(EventArgs e)
+        {
+            base.OnTextChanged(e);
+            Invalidate();
+        }
+
+        protected override void OnClick(EventArgs e)
+        {
+            base.OnClick(e);
+            Focus();
+            Checked = !Checked;
+        }
+
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            base.OnKeyDown(e);
+            if (e.KeyCode == Keys.Space)
+                Checked = !Checked;
+        }
+
+        protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); _hover = true; Invalidate(); }
+        protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hover = false; Invalidate(); }
+        protected override void OnGotFocus(EventArgs e) { base.OnGotFocus(e); Invalidate(); }
+        protected override void OnLostFocus(EventArgs e) { base.OnLostFocus(e); Invalidate(); }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            g.Clear(Parent?.BackColor ?? Theme.Surface);
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            float k = DeviceDpi / 96f;
+
+            float d = 20 * k;
+            var box = new RectangleF(1 * k, (Height - d) / 2f, d, d);
+            using (var path = Theme.RoundedRect(box, 4 * k))
+            {
+                if (_checked)
+                {
+                    using (var fill = new SolidBrush(Theme.Primary)) g.FillPath(fill, path);
+                    using var tick = new Pen(Color.White, 2.2f * k) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
+                    g.DrawLines(tick, new[]
+                    {
+                        new PointF(box.X + d * 0.24f, box.Y + d * 0.52f),
+                        new PointF(box.X + d * 0.42f, box.Y + d * 0.70f),
+                        new PointF(box.X + d * 0.76f, box.Y + d * 0.32f)
+                    });
+                }
+                else
+                {
+                    using (var fill = new SolidBrush(Color.White)) g.FillPath(fill, path);
+                    Color border = _invalid ? Theme.Danger : (_hover || Focused) ? Theme.Primary : Color.FromArgb(148, 163, 184);
+                    using var pen = new Pen(border, (_invalid ? 2f : 1.5f) * k);
+                    g.DrawPath(pen, path);
+                }
+            }
+
+            // Vẽ từng đoạn chữ, đoạn trong [ ] dùng màu nổi bật
+            var flags = TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine;
+            int x = (int)(box.Right + 10 * k);
+            int lineH = TextRenderer.MeasureText(g, "Ag", Font, Size.Empty, flags).Height;
+            int y = (Height - lineH) / 2;
+            var parts = (Text ?? "").Split('[', ']');
+            for (int i = 0; i < parts.Length && x < Width; i++)
+            {
+                if (parts[i].Length == 0)
+                    continue;
+                Color color = i % 2 == 1 ? HighlightColor : ForeColor;
+                int w = TextRenderer.MeasureText(g, parts[i], Font, Size.Empty, flags).Width;
+                TextRenderer.DrawText(g, parts[i], Font, new Rectangle(x, y, Width - x, lineH), color, flags | TextFormatFlags.EndEllipsis);
+                x += w;
+            }
         }
     }
 }

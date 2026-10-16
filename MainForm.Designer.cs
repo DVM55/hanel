@@ -102,23 +102,21 @@
             pnlSerial = new Panel();
             label6 = new Label();
             lbReaderStatus = new Label();
-            indReadOk = new StatusIndicator();
-            indChipActive = new StatusIndicator();
-            indLiveFace = new StatusIndicator();
-            indMatch = new StatusIndicator();
-            indIntegrity = new StatusIndicator();
+            pnlCamera = new Panel();
+            lblCamera = new Label();
+            lbCameraName = new Label();
             flpStatusMsg = new FlowLayoutPanel();
             lbStatusMessage = new Label();
             spinner = new Spinner();
             flpActions = new FlowLayoutPanel();
             btnFingerMain = new Button();
             btnSend = new Button();
-            btnRefresh = new Button();
             pnlTime = new Panel();
             lbTime = new Label();
             lbTimeLb = new Label();
             pnlSeparator = new Panel();
             tlpInfo = new TableLayoutPanel();
+            tlpFields = new TableLayoutPanel();
             label3 = new Label();
             picChipImage = new PictureBox();
             label1 = new Label();
@@ -141,8 +139,6 @@
             txtReligion = new FieldLabel();
             lblCapCharacter = new Label();
             txtCharacter = new FieldLabel();
-            lblCapAge = new Label();
-            txtAge = new FieldLabel();
             lblCapHometown = new Label();
             txtHometown = new FieldLabel();
             lblCapAddress = new Label();
@@ -156,6 +152,13 @@
             lblCapMother = new Label();
             txtMotherName = new FieldLabel();
             lblCapPartner = new Label();
+            lblSecExtra = new SuffixLabel();
+            chkConsent = new ConsentCheck();
+            lblSecCollected = new SuffixLabel();
+            lblCapPhone = new SuffixLabel();
+            inpPhone = new InputBox();
+            lblCapEmail = new SuffixLabel();
+            inpEmail = new InputBox();
             txtPartnerName = new FieldLabel();
             pnlTop.SuspendLayout();
             tlpToolbar.SuspendLayout();
@@ -171,12 +174,14 @@
             tlpMain.SuspendLayout();
             tlpStatus.SuspendLayout();
             pnlDevice.SuspendLayout();
+            pnlCamera.SuspendLayout();
             pnlSerial.SuspendLayout();
             flpStatusMsg.SuspendLayout();
             flpActions.SuspendLayout();
             pnlTime.SuspendLayout();
             btnCaptureFace = new Button();
             tlpInfo.SuspendLayout();
+            tlpFields.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)picChipImage).BeginInit();
             ((System.ComponentModel.ISupportInitialize)picCamera).BeginInit();
             SuspendLayout();
@@ -232,7 +237,7 @@
             btnSettings.FlatStyle = FlatStyle.Flat;
             btnSettings.Font = new Font("Segoe MDL2 Assets", 15.75F, FontStyle.Regular, GraphicsUnit.Point);
             btnSettings.ForeColor = Color.FromArgb(11, 59, 102);
-            btnSettings.Margin = new Padding(0, 18, 8, 0);
+            btnSettings.Margin = new Padding(0, 6, 8, 0);
             btnSettings.Name = "btnSettings";
             btnSettings.Size = new Size(44, 44);
             btnSettings.TabIndex = 0;
@@ -358,9 +363,6 @@
             pnlSettings.Controls.Add(chkDelteForm);
             pnlSettings.Controls.Add(btnRejectCard);
             pnlSettings.Controls.Add(lblSecCamera);
-            pnlSettings.Controls.Add(label7);
-            pnlSettings.Controls.Add(cbFaceCameras);
-            pnlSettings.Controls.Add(btnRefreshCamera);
             pnlSettings.Controls.Add(lblFaceTimeout);
             pnlSettings.Controls.Add(numFaceTimeout);
             pnlSettings.Controls.Add(label9);
@@ -514,10 +516,12 @@
             // cbFaceCameras
             //
             cbFaceCameras.DropDownStyle = ComboBoxStyle.DropDownList;
+            cbFaceCameras.Font = new Font("Segoe UI", 11F, FontStyle.Regular, GraphicsUnit.Point);
             cbFaceCameras.FormattingEnabled = true;
-            cbFaceCameras.Location = new Point(140, 172);
+            cbFaceCameras.Location = new Point(90, 14);
             cbFaceCameras.Name = "cbFaceCameras";
-            cbFaceCameras.Size = new Size(300, 23);
+            cbFaceCameras.Size = new Size(270, 28);
+            cbFaceCameras.Visible = false;
             cbFaceCameras.TabIndex = 12;
             cbFaceCameras.SelectedIndexChanged += cbFaceCameras_SelectedIndexChanged;
             //
@@ -637,6 +641,8 @@
             // chkAutoCompare
             //
             chkAutoCompare.AutoSize = true;
+            chkAutoCompare.Checked = true;
+            chkAutoCompare.CheckState = CheckState.Checked;
             chkAutoCompare.Location = new Point(22, 386);
             chkAutoCompare.Name = "chkAutoCompare";
             chkAutoCompare.TabIndex = 23;
@@ -659,7 +665,7 @@
             numMatchThreshold.Size = new Size(100, 23);
             numMatchThreshold.TabIndex = 24;
             numMatchThreshold.TextAlign = HorizontalAlignment.Right;
-            numMatchThreshold.Value = new decimal(new int[] { 60, 0, 0, 0 });
+            numMatchThreshold.Value = new decimal(new int[] { 70, 0, 0, 0 });
             //
             // lblSecWebhook
             //
@@ -947,7 +953,7 @@
             tlpMain.Location = new Point(28, 16);
             tlpMain.Name = "tlpMain";
             tlpMain.RowCount = 3;
-            tlpMain.RowStyles.Add(new RowStyle(SizeType.Absolute, 150F));
+            tlpMain.RowStyles.Add(new RowStyle(SizeType.Absolute, 56F));
             tlpMain.RowStyles.Add(new RowStyle(SizeType.Absolute, 21F));
             tlpMain.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             tlpMain.Size = new Size(1344, 712);
@@ -955,31 +961,24 @@
             //
             // tlpStatus
             //
-            tlpStatus.ColumnCount = 4;
+            tlpStatus.ColumnCount = 5;
             tlpStatus.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
             tlpStatus.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
             tlpStatus.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
             tlpStatus.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
-            tlpStatus.Controls.Add(pnlDevice, 0, 0);
-            tlpStatus.Controls.Add(pnlSerial, 0, 1);
-            tlpStatus.Controls.Add(indReadOk, 1, 0);
-            tlpStatus.Controls.Add(indChipActive, 1, 1);
-            tlpStatus.Controls.Add(indLiveFace, 2, 0);
-            tlpStatus.Controls.Add(indMatch, 2, 1);
-            tlpStatus.Controls.Add(indIntegrity, 3, 0);
-            tlpStatus.Controls.Add(flpStatusMsg, 0, 2);
-            tlpStatus.Controls.Add(flpActions, 2, 2);
+            tlpStatus.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            tlpStatus.Controls.Add(flpStatusMsg, 0, 0);
+            tlpStatus.Controls.Add(pnlDevice, 1, 0);
+            tlpStatus.Controls.Add(pnlSerial, 2, 0);
+            tlpStatus.Controls.Add(pnlCamera, 3, 0);
+            tlpStatus.Controls.Add(flpActions, 4, 0);
             tlpStatus.Dock = DockStyle.Fill;
             tlpStatus.Location = new Point(0, 0);
             tlpStatus.Margin = new Padding(0);
             tlpStatus.Name = "tlpStatus";
-            tlpStatus.RowCount = 3;
-            tlpStatus.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F));
-            tlpStatus.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F));
+            tlpStatus.RowCount = 1;
             tlpStatus.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            tlpStatus.SetColumnSpan(flpStatusMsg, 2);
-            tlpStatus.SetColumnSpan(flpActions, 2);
-            tlpStatus.Size = new Size(1344, 150);
+            tlpStatus.Size = new Size(1344, 56);
             tlpStatus.TabIndex = 0;
             //
             // pnlDevice
@@ -996,7 +995,7 @@
             label4.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
             label4.Location = new Point(0, 0);
             label4.Name = "label4";
-            label4.Size = new Size(100, 40);
+            label4.Size = new Size(90, 56);
             label4.TabIndex = 0;
             label4.Text = "Thiết bị:";
             label4.TextAlign = ContentAlignment.MiddleLeft;
@@ -1006,9 +1005,9 @@
             lbDeviceState.AutoEllipsis = true;
             lbDeviceState.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
             lbDeviceState.ForeColor = Color.FromArgb(211, 47, 47);
-            lbDeviceState.Location = new Point(100, 0);
+            lbDeviceState.Location = new Point(90, 0);
             lbDeviceState.Name = "lbDeviceState";
-            lbDeviceState.Size = new Size(230, 40);
+            lbDeviceState.Size = new Size(155, 56);
             lbDeviceState.TabIndex = 1;
             lbDeviceState.Text = "CHƯA KẾT NỐI";
             lbDeviceState.TextAlign = ContentAlignment.MiddleLeft;
@@ -1027,7 +1026,7 @@
             label6.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
             label6.Location = new Point(0, 0);
             label6.Name = "label6";
-            label6.Size = new Size(100, 40);
+            label6.Size = new Size(70, 56);
             label6.TabIndex = 0;
             label6.Text = "Serial:";
             label6.TextAlign = ContentAlignment.MiddleLeft;
@@ -1037,52 +1036,44 @@
             lbReaderStatus.AutoEllipsis = true;
             lbReaderStatus.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
             lbReaderStatus.ForeColor = Color.FromArgb(211, 47, 47);
-            lbReaderStatus.Location = new Point(100, 0);
+            lbReaderStatus.Location = new Point(70, 0);
             lbReaderStatus.Name = "lbReaderStatus";
-            lbReaderStatus.Size = new Size(230, 40);
+            lbReaderStatus.Size = new Size(185, 56);
             lbReaderStatus.TabIndex = 1;
             lbReaderStatus.Text = "KHÔNG CÓ";
             lbReaderStatus.TextAlign = ContentAlignment.MiddleLeft;
             //
-            // indReadOk
+            // pnlCamera
             //
-            indReadOk.Dock = DockStyle.Fill;
-            indReadOk.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
-            indReadOk.Name = "indReadOk";
-            indReadOk.TabIndex = 2;
-            indReadOk.Text = "Đọc dữ liệu thành công";
+            pnlCamera.Controls.Add(lblCamera);
+            pnlCamera.Controls.Add(lbCameraName);
+            pnlCamera.Controls.Add(cbFaceCameras);
+            pnlCamera.Dock = DockStyle.Fill;
+            pnlCamera.Margin = new Padding(0);
+            pnlCamera.Name = "pnlCamera";
+            pnlCamera.TabIndex = 2;
             //
-            // indChipActive
+            // lblCamera
             //
-            indChipActive.Dock = DockStyle.Fill;
-            indChipActive.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
-            indChipActive.Name = "indChipActive";
-            indChipActive.TabIndex = 3;
-            indChipActive.Text = "Thẻ chip hoạt động";
+            lblCamera.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
+            lblCamera.Location = new Point(0, 0);
+            lblCamera.Name = "lblCamera";
+            lblCamera.Size = new Size(90, 56);
+            lblCamera.TabIndex = 0;
+            lblCamera.Text = "Camera:";
+            lblCamera.TextAlign = ContentAlignment.MiddleLeft;
             //
-            // indLiveFace
+            // lbCameraName
             //
-            indLiveFace.Dock = DockStyle.Fill;
-            indLiveFace.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
-            indLiveFace.Name = "indLiveFace";
-            indLiveFace.TabIndex = 4;
-            indLiveFace.Text = "Ảnh chụp trực tiếp";
-            //
-            // indMatch
-            //
-            indMatch.Dock = DockStyle.Fill;
-            indMatch.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
-            indMatch.Name = "indMatch";
-            indMatch.TabIndex = 5;
-            indMatch.Text = "So khớp";
-            //
-            // indIntegrity
-            //
-            indIntegrity.Dock = DockStyle.Fill;
-            indIntegrity.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
-            indIntegrity.Name = "indIntegrity";
-            indIntegrity.TabIndex = 6;
-            indIntegrity.Text = "Toàn vẹn dữ liệu";
+            lbCameraName.AutoEllipsis = true;
+            lbCameraName.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
+            lbCameraName.ForeColor = Color.FromArgb(211, 47, 47);
+            lbCameraName.Location = new Point(90, 0);
+            lbCameraName.Name = "lbCameraName";
+            lbCameraName.Size = new Size(285, 56);
+            lbCameraName.TabIndex = 1;
+            lbCameraName.Text = "KHÔNG CÓ";
+            lbCameraName.TextAlign = ContentAlignment.MiddleLeft;
             //
             // flpStatusMsg
             //
@@ -1099,14 +1090,14 @@
             lbStatusMessage.AutoSize = true;
             lbStatusMessage.Font = new Font("Segoe UI", 18F, FontStyle.Bold, GraphicsUnit.Point);
             lbStatusMessage.ForeColor = Color.FromArgb(11, 59, 102);
-            lbStatusMessage.Margin = new Padding(0, 18, 24, 0);
+            lbStatusMessage.Margin = new Padding(0, 10, 16, 0);
             lbStatusMessage.Name = "lbStatusMessage";
             lbStatusMessage.TabIndex = 0;
             lbStatusMessage.Text = "ĐANG TÌM THIẾT BỊ...";
             //
             // spinner
             //
-            spinner.Margin = new Padding(0, 20, 0, 0);
+            spinner.Margin = new Padding(0, 10, 0, 0);
             spinner.Name = "spinner";
             spinner.Size = new Size(36, 36);
             spinner.TabIndex = 1;
@@ -1115,32 +1106,15 @@
             //
             flpActions.Controls.Add(btnSend);
             flpActions.Controls.Add(btnFingerMain);
-            flpActions.Controls.Add(btnRefresh);
             flpActions.Controls.Add(btnSettings);
+            flpActions.AutoSize = true;
+            flpActions.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             flpActions.Dock = DockStyle.Fill;
             flpActions.FlowDirection = FlowDirection.RightToLeft;
             flpActions.Margin = new Padding(0);
             flpActions.Name = "flpActions";
             flpActions.TabIndex = 9;
             flpActions.WrapContents = false;
-            //
-            // btnRefresh
-            //
-            btnRefresh.BackColor = Color.White;
-            btnRefresh.Cursor = Cursors.Hand;
-            btnRefresh.FlatAppearance.BorderColor = Color.FromArgb(21, 101, 192);
-            btnRefresh.FlatAppearance.MouseOverBackColor = Color.FromArgb(232, 241, 251);
-            btnRefresh.FlatStyle = FlatStyle.Flat;
-            btnRefresh.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
-            btnRefresh.ForeColor = Color.FromArgb(21, 101, 192);
-            btnRefresh.Margin = new Padding(0, 18, 8, 0);
-            btnRefresh.Name = "btnRefresh";
-            btnRefresh.Size = new Size(110, 44);
-            btnRefresh.TabIndex = 3;
-            btnRefresh.Text = "LÀM MỚI";
-            toolTip1.SetToolTip(btnRefresh, "Xóa dữ liệu và đọc lại thẻ");
-            btnRefresh.UseVisualStyleBackColor = false;
-            btnRefresh.Click += btnRefresh_Click;
             //
             // btnSend
             //
@@ -1151,13 +1125,12 @@
             btnSend.FlatStyle = FlatStyle.Flat;
             btnSend.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
             btnSend.ForeColor = Color.White;
-            btnSend.Margin = new Padding(0, 18, 0, 0);
+            btnSend.Margin = new Padding(0, 6, 0, 0);
             btnSend.Name = "btnSend";
             btnSend.Size = new Size(160, 44);
             btnSend.TabIndex = 2;
             btnSend.Text = "GỬI THÔNG TIN";
             btnSend.UseVisualStyleBackColor = false;
-            btnSend.Visible = false;
             btnSend.Click += btnSend_Click;
             //
             // btnFingerMain
@@ -1169,7 +1142,7 @@
             btnFingerMain.FlatStyle = FlatStyle.Flat;
             btnFingerMain.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
             btnFingerMain.ForeColor = Color.White;
-            btnFingerMain.Margin = new Padding(0, 18, 8, 0);
+            btnFingerMain.Margin = new Padding(0, 6, 8, 0);
             btnFingerMain.Name = "btnFingerMain";
             btnFingerMain.Size = new Size(110, 44);
             btnFingerMain.TabIndex = 1;
@@ -1232,40 +1205,7 @@
             tlpInfo.Controls.Add(picChipImage, 0, 1);
             tlpInfo.Controls.Add(label1, 0, 6);
             tlpInfo.Controls.Add(picCamera, 0, 7);
-            tlpInfo.Controls.Add(lblCapDocNumber, 2, 1);
-            tlpInfo.Controls.Add(txtDocumentNumber, 3, 1);
-            tlpInfo.Controls.Add(lblCapPrevNumber, 5, 1);
-            tlpInfo.Controls.Add(txtPreviousNumber, 6, 1);
-            tlpInfo.Controls.Add(lblCapName, 2, 2);
-            tlpInfo.Controls.Add(txtName, 3, 2);
-            tlpInfo.Controls.Add(lblCapSex, 5, 2);
-            tlpInfo.Controls.Add(txtSex, 6, 2);
-            tlpInfo.Controls.Add(lblCapDob, 2, 3);
-            tlpInfo.Controls.Add(txtDateOfBirth, 3, 3);
-            tlpInfo.Controls.Add(lblCapNationality, 5, 3);
-            tlpInfo.Controls.Add(txtNationality, 6, 3);
-            tlpInfo.Controls.Add(lblCapNation, 2, 4);
-            tlpInfo.Controls.Add(txtNation, 3, 4);
-            tlpInfo.Controls.Add(lblCapReligion, 5, 4);
-            tlpInfo.Controls.Add(txtReligion, 6, 4);
-            tlpInfo.Controls.Add(lblCapCharacter, 2, 5);
-            tlpInfo.Controls.Add(txtCharacter, 3, 5);
-            tlpInfo.Controls.Add(lblCapAge, 5, 5);
-            tlpInfo.Controls.Add(txtAge, 6, 5);
-            tlpInfo.Controls.Add(lblCapHometown, 2, 7);
-            tlpInfo.Controls.Add(txtHometown, 3, 7);
-            tlpInfo.Controls.Add(lblCapAddress, 2, 8);
-            tlpInfo.Controls.Add(txtAddress, 3, 8);
-            tlpInfo.Controls.Add(lblCapIssueDate, 2, 9);
-            tlpInfo.Controls.Add(txtIssueDate, 3, 9);
-            tlpInfo.Controls.Add(lblCapExpiredDate, 5, 9);
-            tlpInfo.Controls.Add(txtExpiredDate, 6, 9);
-            tlpInfo.Controls.Add(lblCapFather, 2, 10);
-            tlpInfo.Controls.Add(txtFatherName, 3, 10);
-            tlpInfo.Controls.Add(lblCapMother, 5, 10);
-            tlpInfo.Controls.Add(txtMotherName, 6, 10);
-            tlpInfo.Controls.Add(lblCapPartner, 2, 11);
-            tlpInfo.Controls.Add(txtPartnerName, 3, 11);
+            tlpInfo.Controls.Add(tlpFields, 2, 0);
             tlpInfo.Dock = DockStyle.Fill;
             tlpInfo.Margin = new Padding(0);
             tlpInfo.Name = "tlpInfo";
@@ -1284,10 +1224,84 @@
             tlpInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 10F));
             tlpInfo.SetRowSpan(picChipImage, 5);
             tlpInfo.SetRowSpan(picCamera, 5);
-            tlpInfo.SetColumnSpan(txtHometown, 4);
-            tlpInfo.SetColumnSpan(txtAddress, 4);
-            tlpInfo.SetColumnSpan(txtPartnerName, 4);
+            tlpInfo.SetColumnSpan(tlpFields, 5);
+            tlpInfo.SetRowSpan(tlpFields, 12);
             tlpInfo.TabIndex = 2;
+            //
+            // tlpFields
+            //
+            tlpFields.ColumnCount = 5;
+            tlpFields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160F));
+            tlpFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            tlpFields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 36F));
+            tlpFields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160F));
+            tlpFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            tlpFields.Controls.Add(lblSecExtra, 0, 0);
+            tlpFields.Controls.Add(lblSecCollected, 0, 3);
+            tlpFields.Controls.Add(chkConsent, 0, 2);
+            tlpFields.Controls.Add(lblCapPhone, 0, 1);
+            tlpFields.Controls.Add(inpPhone, 1, 1);
+            tlpFields.Controls.Add(lblCapEmail, 3, 1);
+            tlpFields.Controls.Add(inpEmail, 4, 1);
+            tlpFields.Controls.Add(lblCapDocNumber, 0, 4);
+            tlpFields.Controls.Add(txtDocumentNumber, 1, 4);
+            tlpFields.Controls.Add(lblCapPrevNumber, 3, 4);
+            tlpFields.Controls.Add(txtPreviousNumber, 4, 4);
+            tlpFields.Controls.Add(lblCapName, 0, 5);
+            tlpFields.Controls.Add(txtName, 1, 5);
+            tlpFields.Controls.Add(lblCapSex, 3, 5);
+            tlpFields.Controls.Add(txtSex, 4, 5);
+            tlpFields.Controls.Add(lblCapDob, 0, 6);
+            tlpFields.Controls.Add(txtDateOfBirth, 1, 6);
+            tlpFields.Controls.Add(lblCapNationality, 3, 6);
+            tlpFields.Controls.Add(txtNationality, 4, 6);
+            tlpFields.Controls.Add(lblCapNation, 0, 7);
+            tlpFields.Controls.Add(txtNation, 1, 7);
+            tlpFields.Controls.Add(lblCapReligion, 3, 7);
+            tlpFields.Controls.Add(txtReligion, 4, 7);
+            tlpFields.Controls.Add(lblCapCharacter, 0, 8);
+            tlpFields.Controls.Add(txtCharacter, 1, 8);
+            tlpFields.Controls.Add(lblCapHometown, 0, 10);
+            tlpFields.Controls.Add(txtHometown, 1, 10);
+            tlpFields.Controls.Add(lblCapAddress, 0, 11);
+            tlpFields.Controls.Add(txtAddress, 1, 11);
+            tlpFields.Controls.Add(lblCapIssueDate, 0, 12);
+            tlpFields.Controls.Add(txtIssueDate, 1, 12);
+            tlpFields.Controls.Add(lblCapExpiredDate, 3, 12);
+            tlpFields.Controls.Add(txtExpiredDate, 4, 12);
+            tlpFields.Controls.Add(lblCapFather, 0, 13);
+            tlpFields.Controls.Add(txtFatherName, 1, 13);
+            tlpFields.Controls.Add(lblCapMother, 3, 13);
+            tlpFields.Controls.Add(txtMotherName, 4, 13);
+            tlpFields.Controls.Add(lblCapPartner, 0, 14);
+            tlpFields.Controls.Add(txtPartnerName, 1, 14);
+            tlpFields.Dock = DockStyle.Fill;
+            tlpFields.Margin = new Padding(0);
+            tlpFields.Name = "tlpFields";
+            tlpFields.RowCount = 15;
+            tlpFields.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F));
+            tlpFields.RowStyles.Add(new RowStyle(SizeType.Percent, 10F));
+            tlpFields.RowStyles.Add(new RowStyle(SizeType.Absolute, 36F));
+            tlpFields.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F));
+            tlpFields.RowStyles.Add(new RowStyle(SizeType.Percent, 10F));
+            tlpFields.RowStyles.Add(new RowStyle(SizeType.Percent, 10F));
+            tlpFields.RowStyles.Add(new RowStyle(SizeType.Percent, 10F));
+            tlpFields.RowStyles.Add(new RowStyle(SizeType.Percent, 10F));
+            tlpFields.RowStyles.Add(new RowStyle(SizeType.Percent, 10F));
+            tlpFields.RowStyles.Add(new RowStyle(SizeType.Absolute, 8F));
+            tlpFields.RowStyles.Add(new RowStyle(SizeType.Percent, 10F));
+            tlpFields.RowStyles.Add(new RowStyle(SizeType.Percent, 10F));
+            tlpFields.RowStyles.Add(new RowStyle(SizeType.Percent, 10F));
+            tlpFields.RowStyles.Add(new RowStyle(SizeType.Percent, 10F));
+            tlpFields.RowStyles.Add(new RowStyle(SizeType.Percent, 10F));
+            tlpFields.SetColumnSpan(lblSecExtra, 5);
+            tlpFields.SetColumnSpan(lblSecCollected, 5);
+            tlpFields.SetColumnSpan(chkConsent, 5);
+            tlpFields.SetColumnSpan(txtCharacter, 4);
+            tlpFields.SetColumnSpan(txtHometown, 4);
+            tlpFields.SetColumnSpan(txtAddress, 4);
+            tlpFields.SetColumnSpan(txtPartnerName, 4);
+            tlpFields.TabIndex = 0;
             //
             // label3
             //
@@ -1371,7 +1385,7 @@
             txtDocumentNumber.CaptionLabel = lblCapDocNumber;
             txtDocumentNumber.Dock = DockStyle.Fill;
             txtDocumentNumber.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
-            txtDocumentNumber.Margin = new Padding(0, 4, 0, 4);
+            txtDocumentNumber.Margin = new Padding(0, 7, 0, 7);
             txtDocumentNumber.Name = "txtDocumentNumber";
             txtDocumentNumber.TabIndex = 11;
             //
@@ -1391,7 +1405,7 @@
             txtPreviousNumber.CaptionLabel = lblCapPrevNumber;
             txtPreviousNumber.Dock = DockStyle.Fill;
             txtPreviousNumber.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
-            txtPreviousNumber.Margin = new Padding(0, 4, 0, 4);
+            txtPreviousNumber.Margin = new Padding(0, 7, 0, 7);
             txtPreviousNumber.Name = "txtPreviousNumber";
             txtPreviousNumber.TabIndex = 13;
             //
@@ -1411,7 +1425,7 @@
             txtName.CaptionLabel = lblCapName;
             txtName.Dock = DockStyle.Fill;
             txtName.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
-            txtName.Margin = new Padding(0, 4, 0, 4);
+            txtName.Margin = new Padding(0, 7, 0, 7);
             txtName.Name = "txtName";
             txtName.TabIndex = 15;
             //
@@ -1431,7 +1445,7 @@
             txtSex.CaptionLabel = lblCapSex;
             txtSex.Dock = DockStyle.Fill;
             txtSex.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
-            txtSex.Margin = new Padding(0, 4, 0, 4);
+            txtSex.Margin = new Padding(0, 7, 0, 7);
             txtSex.Name = "txtSex";
             txtSex.TabIndex = 17;
             //
@@ -1451,7 +1465,7 @@
             txtDateOfBirth.CaptionLabel = lblCapDob;
             txtDateOfBirth.Dock = DockStyle.Fill;
             txtDateOfBirth.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
-            txtDateOfBirth.Margin = new Padding(0, 4, 0, 4);
+            txtDateOfBirth.Margin = new Padding(0, 7, 0, 7);
             txtDateOfBirth.Name = "txtDateOfBirth";
             txtDateOfBirth.TabIndex = 19;
             //
@@ -1471,7 +1485,7 @@
             txtNationality.CaptionLabel = lblCapNationality;
             txtNationality.Dock = DockStyle.Fill;
             txtNationality.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
-            txtNationality.Margin = new Padding(0, 4, 0, 4);
+            txtNationality.Margin = new Padding(0, 7, 0, 7);
             txtNationality.Name = "txtNationality";
             txtNationality.TabIndex = 21;
             //
@@ -1491,7 +1505,7 @@
             txtNation.CaptionLabel = lblCapNation;
             txtNation.Dock = DockStyle.Fill;
             txtNation.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
-            txtNation.Margin = new Padding(0, 4, 0, 4);
+            txtNation.Margin = new Padding(0, 7, 0, 7);
             txtNation.Name = "txtNation";
             txtNation.TabIndex = 23;
             //
@@ -1511,7 +1525,7 @@
             txtReligion.CaptionLabel = lblCapReligion;
             txtReligion.Dock = DockStyle.Fill;
             txtReligion.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
-            txtReligion.Margin = new Padding(0, 4, 0, 4);
+            txtReligion.Margin = new Padding(0, 7, 0, 7);
             txtReligion.Name = "txtReligion";
             txtReligion.TabIndex = 25;
             //
@@ -1531,29 +1545,9 @@
             txtCharacter.CaptionLabel = lblCapCharacter;
             txtCharacter.Dock = DockStyle.Fill;
             txtCharacter.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
-            txtCharacter.Margin = new Padding(0, 4, 0, 4);
+            txtCharacter.Margin = new Padding(0, 7, 0, 7);
             txtCharacter.Name = "txtCharacter";
             txtCharacter.TabIndex = 27;
-            //
-            // lblCapAge
-            //
-            lblCapAge.AutoEllipsis = true;
-            lblCapAge.Dock = DockStyle.Fill;
-            lblCapAge.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
-            lblCapAge.ForeColor = Color.FromArgb(21, 101, 192);
-            lblCapAge.Name = "lblCapAge";
-            lblCapAge.TabIndex = 28;
-            lblCapAge.Text = "Tuổi";
-            lblCapAge.TextAlign = ContentAlignment.MiddleLeft;
-            //
-            // txtAge
-            //
-            txtAge.CaptionLabel = lblCapAge;
-            txtAge.Dock = DockStyle.Fill;
-            txtAge.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
-            txtAge.Margin = new Padding(0, 4, 0, 4);
-            txtAge.Name = "txtAge";
-            txtAge.TabIndex = 29;
             //
             // lblCapHometown
             //
@@ -1571,7 +1565,7 @@
             txtHometown.CaptionLabel = lblCapHometown;
             txtHometown.Dock = DockStyle.Fill;
             txtHometown.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
-            txtHometown.Margin = new Padding(0, 4, 0, 4);
+            txtHometown.Margin = new Padding(0, 7, 0, 7);
             txtHometown.Name = "txtHometown";
             txtHometown.TabIndex = 31;
             //
@@ -1591,7 +1585,7 @@
             txtAddress.CaptionLabel = lblCapAddress;
             txtAddress.Dock = DockStyle.Fill;
             txtAddress.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
-            txtAddress.Margin = new Padding(0, 4, 0, 4);
+            txtAddress.Margin = new Padding(0, 7, 0, 7);
             txtAddress.Name = "txtAddress";
             txtAddress.TabIndex = 33;
             //
@@ -1611,7 +1605,7 @@
             txtIssueDate.CaptionLabel = lblCapIssueDate;
             txtIssueDate.Dock = DockStyle.Fill;
             txtIssueDate.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
-            txtIssueDate.Margin = new Padding(0, 4, 0, 4);
+            txtIssueDate.Margin = new Padding(0, 7, 0, 7);
             txtIssueDate.Name = "txtIssueDate";
             txtIssueDate.TabIndex = 35;
             //
@@ -1631,7 +1625,7 @@
             txtExpiredDate.CaptionLabel = lblCapExpiredDate;
             txtExpiredDate.Dock = DockStyle.Fill;
             txtExpiredDate.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
-            txtExpiredDate.Margin = new Padding(0, 4, 0, 4);
+            txtExpiredDate.Margin = new Padding(0, 7, 0, 7);
             txtExpiredDate.Name = "txtExpiredDate";
             txtExpiredDate.TabIndex = 37;
             //
@@ -1651,7 +1645,7 @@
             txtFatherName.CaptionLabel = lblCapFather;
             txtFatherName.Dock = DockStyle.Fill;
             txtFatherName.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
-            txtFatherName.Margin = new Padding(0, 4, 0, 4);
+            txtFatherName.Margin = new Padding(0, 7, 0, 7);
             txtFatherName.Name = "txtFatherName";
             txtFatherName.TabIndex = 39;
             //
@@ -1671,7 +1665,7 @@
             txtMotherName.CaptionLabel = lblCapMother;
             txtMotherName.Dock = DockStyle.Fill;
             txtMotherName.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
-            txtMotherName.Margin = new Padding(0, 4, 0, 4);
+            txtMotherName.Margin = new Padding(0, 7, 0, 7);
             txtMotherName.Name = "txtMotherName";
             txtMotherName.TabIndex = 41;
             //
@@ -1691,9 +1685,83 @@
             txtPartnerName.CaptionLabel = lblCapPartner;
             txtPartnerName.Dock = DockStyle.Fill;
             txtPartnerName.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
-            txtPartnerName.Margin = new Padding(0, 4, 0, 4);
+            txtPartnerName.Margin = new Padding(0, 7, 0, 7);
             txtPartnerName.Name = "txtPartnerName";
             txtPartnerName.TabIndex = 43;
+            //
+            // lblSecExtra
+            //
+            lblSecExtra.Dock = DockStyle.Fill;
+            lblSecExtra.Font = new Font("Segoe UI", 13F, FontStyle.Bold, GraphicsUnit.Point);
+            lblSecExtra.ForeColor = Color.FromArgb(11, 59, 102);
+            lblSecExtra.Heading = true;
+            lblSecExtra.Margin = new Padding(0);
+            lblSecExtra.Name = "lblSecExtra";
+            lblSecExtra.TabIndex = 48;
+            lblSecExtra.Text = "THÔNG TIN BỔ SUNG";
+            //
+            // chkConsent
+            //
+            chkConsent.Dock = DockStyle.Fill;
+            chkConsent.Font = new Font("Segoe UI", 11.25F, FontStyle.Regular, GraphicsUnit.Point);
+            chkConsent.Margin = new Padding(0);
+            chkConsent.Name = "chkConsent";
+            chkConsent.TabIndex = 50;
+            chkConsent.Text = "Tôi đồng ý với [chính sách, điều khoản] xử lý bảo vệ dữ liệu cá nhân của [EasyCA!]";
+            //
+            // lblSecCollected
+            //
+            lblSecCollected.Dock = DockStyle.Fill;
+            lblSecCollected.Font = new Font("Segoe UI", 13F, FontStyle.Bold, GraphicsUnit.Point);
+            lblSecCollected.ForeColor = Color.FromArgb(11, 59, 102);
+            lblSecCollected.Heading = true;
+            lblSecCollected.Margin = new Padding(0);
+            lblSecCollected.Name = "lblSecCollected";
+            lblSecCollected.TabIndex = 49;
+            lblSecCollected.Text = "THÔNG TIN THU THẬP";
+            //
+            // lblCapPhone
+            //
+            lblCapPhone.AutoEllipsis = true;
+            lblCapPhone.Dock = DockStyle.Fill;
+            lblCapPhone.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
+            lblCapPhone.ForeColor = Color.FromArgb(21, 101, 192);
+                        lblCapPhone.Name = "lblCapPhone";
+            lblCapPhone.TabIndex = 44;
+            lblCapPhone.Text = "Số điện thoại";
+            lblCapPhone.Suffix = " *";
+            //
+            // inpPhone
+            //
+            inpPhone.Dock = DockStyle.Fill;
+            inpPhone.Font = new Font("Segoe UI", 11.25F, FontStyle.Regular, GraphicsUnit.Point);
+            inpPhone.Margin = new Padding(0, 7, 0, 7);
+            inpPhone.MaxLength = 12;
+            inpPhone.Name = "inpPhone";
+            inpPhone.Placeholder = "Nhập số điện thoại";
+            inpPhone.TabIndex = 45;
+            inpPhone.KeyPress += inpPhone_KeyPress;
+            //
+            // lblCapEmail
+            //
+            lblCapEmail.AutoEllipsis = true;
+            lblCapEmail.Dock = DockStyle.Fill;
+            lblCapEmail.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
+            lblCapEmail.ForeColor = Color.FromArgb(21, 101, 192);
+                        lblCapEmail.Name = "lblCapEmail";
+            lblCapEmail.TabIndex = 46;
+            lblCapEmail.Text = "Email";
+            lblCapEmail.Suffix = " *";
+            //
+            // inpEmail
+            //
+            inpEmail.Dock = DockStyle.Fill;
+            inpEmail.Font = new Font("Segoe UI", 11.25F, FontStyle.Regular, GraphicsUnit.Point);
+            inpEmail.Margin = new Padding(0, 7, 0, 7);
+            inpEmail.MaxLength = 100;
+            inpEmail.Name = "inpEmail";
+            inpEmail.Placeholder = "Nhập địa chỉ email";
+            inpEmail.TabIndex = 47;
             //
             // MainForm
             //
@@ -1728,12 +1796,14 @@
             tlpMain.ResumeLayout(false);
             tlpStatus.ResumeLayout(false);
             pnlDevice.ResumeLayout(false);
+            pnlCamera.ResumeLayout(false);
             pnlSerial.ResumeLayout(false);
             flpStatusMsg.ResumeLayout(false);
             flpActions.ResumeLayout(false);
             flpStatusMsg.PerformLayout();
             pnlTime.ResumeLayout(false);
             tlpInfo.ResumeLayout(false);
+            tlpFields.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)picChipImage).EndInit();
             ((System.ComponentModel.ISupportInitialize)picCamera).EndInit();
             ResumeLayout(false);
@@ -1815,23 +1885,21 @@
         private Panel pnlSerial;
         private Label label6;
         private Label lbReaderStatus;
-        private StatusIndicator indReadOk;
-        private StatusIndicator indChipActive;
-        private StatusIndicator indLiveFace;
-        private StatusIndicator indMatch;
-        private StatusIndicator indIntegrity;
+        private Panel pnlCamera;
+        private Label lblCamera;
+        private Label lbCameraName;
         private FlowLayoutPanel flpStatusMsg;
         private Label lbStatusMessage;
         private Spinner spinner;
         private FlowLayoutPanel flpActions;
         private Button btnFingerMain;
         private Button btnSend;
-        private Button btnRefresh;
         private Panel pnlTime;
         private Label lbTime;
         private Label lbTimeLb;
         private Panel pnlSeparator;
         private TableLayoutPanel tlpInfo;
+        private TableLayoutPanel tlpFields;
         private Label label3;
         private PictureBox picChipImage;
         private Label label1;
@@ -1854,8 +1922,6 @@
         private FieldLabel txtReligion;
         private Label lblCapCharacter;
         private FieldLabel txtCharacter;
-        private Label lblCapAge;
-        private FieldLabel txtAge;
         private Label lblCapHometown;
         private FieldLabel txtHometown;
         private Label lblCapAddress;
@@ -1869,6 +1935,13 @@
         private Label lblCapMother;
         private FieldLabel txtMotherName;
         private Label lblCapPartner;
+        private SuffixLabel lblSecExtra;
+        private ConsentCheck chkConsent;
+        private SuffixLabel lblSecCollected;
+        private SuffixLabel lblCapPhone;
+        private InputBox inpPhone;
+        private SuffixLabel lblCapEmail;
+        private InputBox inpEmail;
         private FieldLabel txtPartnerName;
     }
 }

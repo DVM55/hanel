@@ -10,6 +10,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using Timer = System.Windows.Forms.Timer;
 
@@ -22,7 +23,6 @@ namespace IdCard.Hanel
         Timer _timer = new Timer();
         Stopwatch _stw = new Stopwatch();
         readonly AppSettings _settings = AppSettings.Load();
-        static readonly HttpClient _http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
         int? _lastMatchScore;
         // Dữ liệu thẻ của lần đọc thành công gần nhất, null khi chưa đọc hoặc đã xoá form
         CardFullData? _cardData;
@@ -129,26 +129,47 @@ namespace IdCard.Hanel
             pnlBody.Padding = new Padding(S(shortH ? 10 : 20));
             cardMain.Padding = shortH ? new Padding(S(20), S(8), S(20), S(10)) : new Padding(S(28), S(16), S(28), S(20));
 
-            tlpMain.RowStyles[0].Height = S(shortH ? 120 : 150);
+            tlpMain.RowStyles[0].Height = S(shortH ? 48 : 56);
             tlpMain.RowStyles[1].Height = S(shortH ? 13 : 21);
             pnlSeparator.Margin = new Padding(0, S(shortH ? 6 : 10), 0, S(shortH ? 6 : 10));
-            tlpStatus.RowStyles[0].Height = S(shortH ? 32 : 40);
-            tlpStatus.RowStyles[1].Height = S(shortH ? 32 : 40);
 
-            int btnTop = S(shortH ? 6 : 18);
+            int btnTop = S(shortH ? 2 : 6);
             btnSend.Margin = new Padding(0, btnTop, 0, 0);
             btnFingerMain.Margin = new Padding(0, btnTop, S(8), 0);
-            btnRefresh.Margin = new Padding(0, btnTop, S(8), 0);
             btnSettings.Margin = new Padding(0, btnTop, S(8), 0);
-            lbStatusMessage.Margin = new Padding(0, S(shortH ? 8 : 18), S(24), 0);
-            spinner.Margin = new Padding(0, S(shortH ? 10 : 20), 0, 0);
+            lbStatusMessage.Margin = new Padding(0, S(shortH ? 6 : 10), S(16), 0);
+            spinner.Margin = new Padding(0, S(shortH ? 6 : 10), 0, 0);
 
             tlpInfo.RowStyles[0].Height = S(shortH ? 30 : 40);
             tlpInfo.RowStyles[6].Height = S(shortH ? 30 : 40);
             tlpInfo.ColumnStyles[0].Width = S(narrow ? 190 : 240);
-            tlpInfo.ColumnStyles[2].Width = S(narrow ? 130 : 160);
-            tlpInfo.ColumnStyles[5].Width = S(narrow ? 130 : 160);
+            tlpFields.RowStyles[0].Height = S(shortH ? 30 : 40);
+            tlpFields.RowStyles[2].Height = S(shortH ? 30 : 36);
+            tlpFields.RowStyles[3].Height = S(shortH ? 30 : 40);
+            tlpFields.ColumnStyles[0].Width = S(narrow ? 130 : 160);
+            tlpFields.ColumnStyles[3].Width = S(narrow ? 130 : 160);
             ResumeLayout(true);
+            LayoutStatusPair(pnlDevice, label4, lbDeviceState);
+            LayoutStatusPair(pnlSerial, label6, lbReaderStatus);
+            LayoutStatusPair(pnlCamera, lblCamera, lbCameraName, cbFaceCameras);
+        }
+
+        /// <summary>Nhãn vừa khít chữ, giá trị đặt ngay sau với khoảng cách cố định và giãn theo độ rộng cột.</summary>
+        private void LayoutStatusPair(Panel pnl, Label caption, params Control[] values)
+        {
+            int gap = (int)Math.Round(12 * DeviceDpi / 96f);
+            int h = pnl.ClientSize.Height;
+            caption.SetBounds(0, 0, caption.PreferredWidth, h);
+            int left = caption.Right + gap;
+            int width = Math.Max(0, pnl.ClientSize.Width - left - gap);
+            foreach (var v in values)
+            {
+                v.Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
+                if (v is ComboBox)
+                    v.SetBounds(left, (h - v.Height) / 2, width, v.Height);
+                else
+                    v.SetBounds(left, 0, width, h);
+            }
         }
 
         private void MainForm_Load(object sender, EventArgs e)
@@ -164,6 +185,12 @@ namespace IdCard.Hanel
             txtWebhookUser.Text = _settings.WebhookUser;
             chkAutoCompare.Checked = _settings.AutoCompareFace;
             numMatchThreshold.Value = Math.Clamp(_settings.FaceMatchThreshold, (int)numMatchThreshold.Minimum, (int)numMatchThreshold.Maximum);
+            chkAutocapture.Checked = _settings.AutoCaptureFace;
+            numFaceDurationTime.Value = Math.Clamp(_settings.AutoCaptureFaceMinimumMs, (int)numFaceDurationTime.Minimum, (int)numFaceDurationTime.Maximum);
+            numFaceDurationTime.Enabled = chkAutocapture.Checked;
+            chkDetectFace.Checked = _settings.CaptureFaceDetectFace;
+            chkShowTimeout.Checked = _settings.CaptureFaceShowTimeout;
+            numFaceTimeout.Value = Math.Clamp(_settings.CaptureFaceTimeoutMs, (int)numFaceTimeout.Minimum, (int)numFaceTimeout.Maximum);
             ShowPasswordMask();
             SetStatusMessage("ĐANG TÌM THIẾT BỊ...", Theme.Navy, true);
             InitReader();
@@ -202,7 +229,6 @@ namespace IdCard.Hanel
             txtFatherName.Text = "Họ tên bố: ";
             txtMotherName.Text = "Họ tên mẹ: ";
             txtPartnerName.Text = "Vợ/Chồng: ";
-            txtAge.Text = "Tuổi: ";
             txtMRZ.Text = "MRZ: ";
             txtDSCert.Text = "";
 
@@ -216,11 +242,6 @@ namespace IdCard.Hanel
             _ocrFrontBts = null;
             _ocrBackBts = null;
 
-            //Process status
-            indReadOk.State = IndicatorState.None;
-            indIntegrity.State = IndicatorState.None;
-            indMatch.State = IndicatorState.None;
-            indMatch.Text = "So khớp";
             lblMatchResult.Visible = false;
         }
 
@@ -229,26 +250,6 @@ namespace IdCard.Hanel
             lbStatusMessage.Text = text;
             lbStatusMessage.ForeColor = color;
             spinner.Active = busy;
-        }
-
-        private static IndicatorState ToIndicator(CardStepStatus status) => status switch
-        {
-            CardStepStatus.SUCCESS => IndicatorState.Ok,
-            CardStepStatus.FAILURE => IndicatorState.Fail,
-            _ => IndicatorState.None
-        };
-
-        private static string GetAge(string? dateOfBirth)
-        {
-            string[] formats = { "dd/MM/yyyy", "d/M/yyyy", "ddMMyyyy", "yyyy-MM-dd", "dd-MM-yyyy" };
-            if (!DateTime.TryParseExact(dateOfBirth?.Trim(), formats, System.Globalization.CultureInfo.InvariantCulture,
-                    System.Globalization.DateTimeStyles.None, out var dob))
-                return "";
-            var today = DateTime.Today;
-            int age = today.Year - dob.Year;
-            if (dob.Date > today.AddYears(-age))
-                age--;
-            return age.ToString();
         }
 
         private void btnSettings_Click(object sender, EventArgs e)
@@ -321,6 +322,11 @@ namespace IdCard.Hanel
             _settings.WebhookUser = txtWebhookUser.Text.Trim();
             _settings.AutoCompareFace = chkAutoCompare.Checked;
             _settings.FaceMatchThreshold = (int)numMatchThreshold.Value;
+            _settings.AutoCaptureFace = chkAutocapture.Checked;
+            _settings.AutoCaptureFaceMinimumMs = (int)numFaceDurationTime.Value;
+            _settings.CaptureFaceDetectFace = chkDetectFace.Checked;
+            _settings.CaptureFaceShowTimeout = chkShowTimeout.Checked;
+            _settings.CaptureFaceTimeoutMs = (int)numFaceTimeout.Value;
             // Ô đang hiện mặt nạ "********" nghĩa là người dùng không đổi mật khẩu
             if (!_passMasked)
                 _settings.SetWebhookPassword(txtWebhookPass.Text);
@@ -427,8 +433,8 @@ namespace IdCard.Hanel
             config.CheckAACAAuthen = !txtFastRead.Checked;
 
             /* Capture face, Minimum time have real face*/
-            /* Default is 200ms */
-            config.AutoCaptureFaceMinimumMs = 200;
+            /* Lấy từ cấu hình (.env / settings.json), mặc định 200ms */
+            config.AutoCaptureFaceMinimumMs = (int)numFaceDurationTime.Value;
             /* Spoofing mode */
             config.SpoofingMode = (HN212SpoofMode)(cbAntiSpoofing.SelectedIndex);
 
@@ -481,7 +487,8 @@ namespace IdCard.Hanel
             else
             {
                 _cardPresent = false;
-                indChipActive.State = IndicatorState.None;
+                cbFaceCameras.DataSource = null;
+                UpdateCameraDisplay();
                 SetStatusMessage("CHƯA KẾT NỐI THIẾT BỊ", Theme.Danger, false);
             }
         }
@@ -500,7 +507,6 @@ namespace IdCard.Hanel
                 return;
             WriteLog($"----> [{DateTime.Now.ToString("HH:mm:ss")}] Card in Device {ev.ReaderSerialNumber} change stated from: {ev.LastState} to: {ev.NewState}.");
             _cardPresent = ev.NewState != CARD_STATUS.EMPTY;
-            indChipActive.State = _cardPresent ? IndicatorState.Ok : IndicatorState.None;
 
             //Have new card, start timer to show time processing
             if (ev.NewState == CARD_STATUS.PRESENT)
@@ -555,17 +561,12 @@ namespace IdCard.Hanel
             //Check error
             if (ev.Status != READ_CARD_STATUS.SUCCESS)
             {
-                indReadOk.State = IndicatorState.Fail;
-                indChipActive.State = _cardPresent ? IndicatorState.Fail : IndicatorState.None;
                 SetStatusMessage("ĐỌC THẺ THẤT BẠI", Theme.Danger, false);
                 MessageBox.Show("Đọc thẻ thất bại: " + ErrorText.Translate(ev.Message), "Thông báo lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
-            indReadOk.State = IndicatorState.Ok;
-            indChipActive.State = IndicatorState.Ok;
             _cardData = _reader.CardData;
-            indIntegrity.State = ToIndicator(_reader.CardData.VerifySOD);
             SetStatusMessage("ĐỌC THẺ THÀNH CÔNG", Theme.Success, false);
 
             //Show data
@@ -596,7 +597,6 @@ namespace IdCard.Hanel
                 //Personal info
                 txtDocumentNumber.Text = "Số CCCD: " + _reader.CardData.Dg13File.DocumentNumber;
                 txtDateOfBirth.Text = "Ngày sinh: " + _reader.CardData.Dg13File.DateOfBirth;
-                txtAge.Text = "Tuổi: " + GetAge(_reader.CardData.Dg13File.DateOfBirth);
                 txtIssueDate.Text = "Ngày cấp: " + _reader.CardData.Dg13File.IssueDate;
                 txtPreviousNumber.Text = "Số CMND: " + _reader.CardData.Dg13File.PreviousNumber;
                 txtName.Text = "Họ và tên: " + _reader.CardData.Dg13File.Name;
@@ -671,10 +671,6 @@ namespace IdCard.Hanel
                 //Active/Chip Authentication
                 WriteLog($"Chip Authen: {_reader.CardData.AaCaAuthen}");
             }
-
-            // Đọc thẻ CCCD xong thì tự động gửi qua webhook
-            if (_cardData.Dg13File != null && _ChipFaceBts != null)
-                BeginInvoke(new Action(async () => await SendCardInfoAsync()));
         }
         private void ProcessReadEvent(StatusEventReadArgs? ev)
         {
@@ -813,23 +809,9 @@ namespace IdCard.Hanel
                         break;
                 }
 
-                indLiveFace.Text = $"Ảnh chụp trực tiếp ({reason})";
-                indLiveFace.State = IndicatorState.Fail;
-                WriteLog($"FaceCapture: {frm.Message}");
+                WriteLog($"FaceCapture: {frm.Message} ({reason})");
                 MessageBox.Show(ErrorText.Translate(frm.Message), "Thông báo lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
-            }
-            //if (_reader.ReaderConfig.CaptureFaceCompare)
-            //{
-            //    indMatch.Text = $"So khớp ({frm.CompareScore}%)";
-            //    indMatch.State = frm.CompareScore >= 60 ? IndicatorState.Ok : IndicatorState.Fail;
-            //}
-            //else
-            {
-                indLiveFace.Text = "Ảnh chụp trực tiếp";
-                indLiveFace.State = IndicatorState.Ok;
-                indMatch.Text = "So khớp";
-                indMatch.State = IndicatorState.None;
             }
             // Chưa đọc thẻ thì chờ, sẽ so khớp khi đọc thẻ xong
             if (chkAutoCompare.Checked && _ChipFaceBts != null)
@@ -887,6 +869,26 @@ namespace IdCard.Hanel
                 //set facecam id
                 _reader.FaceCaptureCamId = (cams[0].Id);
             }
+            UpdateCameraDisplay();
+        }
+
+        /// <summary>1 camera thì hiện tên, nhiều camera thì hiện danh sách để chọn.</summary>
+        private void UpdateCameraDisplay()
+        {
+            int count = cbFaceCameras.Items.Count;
+            bool multi = count > 1;
+            cbFaceCameras.Visible = multi;
+            lbCameraName.Visible = !multi;
+            if (count == 1)
+            {
+                lbCameraName.Text = cbFaceCameras.GetItemText(cbFaceCameras.Items[0]);
+                lbCameraName.ForeColor = Theme.Info;
+            }
+            else
+            {
+                lbCameraName.Text = "KHÔNG CÓ";
+                lbCameraName.ForeColor = Theme.Danger;
+            }
         }
 
         private void btnCompare_Click(object sender, EventArgs e)
@@ -899,25 +901,36 @@ namespace IdCard.Hanel
             CompareFaces();
         }
 
-        private void CompareFaces()
+        /// <summary>So khớp ảnh chụp với ảnh chip; dưới ngưỡng thì báo chụp lại. Trả về true nếu khớp.</summary>
+        private bool CompareFaces()
         {
             if (_ChipFaceBts == null || _CamFaceBts == null)
-                return;
+                return false;
             try
             {
                 int score = _reader.CompareFace(_ChipFaceBts, _CamFaceBts);
                 _lastMatchScore = score;
-                indMatch.Text = $"So khớp ({score}%)";
-                bool matched = score >= (int)numMatchThreshold.Value;
-                indMatch.State = matched ? IndicatorState.Ok : IndicatorState.Fail;
+                int threshold = (int)numMatchThreshold.Value;
+                bool matched = score >= threshold;
                 lblMatchResult.Text = matched ? $"SUCCESS ({score}%)" : $"FAIL ({score}%)";
                 lblMatchResult.BackColor = matched ? Theme.Success : Theme.Danger;
                 lblMatchResult.Visible = true;
+                if (!matched)
+                {
+                    SetStatusMessage("ẢNH CHÂN DUNG KHÔNG KHỚP", Theme.Danger, false);
+                    var retake = MessageBox.Show($"Ảnh chân dung không khớp với ảnh trong CCCD (độ khớp {score}%).\n" +
+                        "Bấm OK để mở camera chụp lại.", "Chụp lại", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
+                    // Mở camera sau khi luồng hiện tại kết thúc, tránh gọi lồng trong btnFaceMatching_Click
+                    if (retake == DialogResult.OK)
+                        BeginInvoke(() => btnFaceMatching_Click(this, EventArgs.Empty));
+                }
+                return matched;
             }
             catch (Exception ex)
             {
                 WriteLog($"CompareFace: {ex}");
                 MessageBox.Show(ErrorText.Translate(ex.Message), "Thông báo lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
             }
         }
 
@@ -928,7 +941,7 @@ namespace IdCard.Hanel
 
         bool _sending = false;
 
-        /// <summary>Gửi dữ liệu thẻ qua webhook (tự động gọi sau khi đọc thẻ thành công), không cần chụp ảnh, không hỏi xác nhận.</summary>
+        /// <summary>Gửi dữ liệu thẻ qua webhook khi bấm nút Gửi, không bắt buộc chụp ảnh, không hỏi xác nhận.</summary>
         private async Task SendCardInfoAsync()
         {
             if (_sending)
@@ -946,10 +959,25 @@ namespace IdCard.Hanel
                 MessageBox.Show("Chưa cấu hình Webhook URL hoặc tài khoản.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
+            // SĐT, email và đồng ý chính sách bắt buộc: thiếu thì dừng, nhập xong bấm Gửi để gửi lại
+            string? phoneErr = ValidatePhone();
+            string? emailErr = ValidateEmail();
+            string? consentErr = chkConsent.Checked ? null : ValidationConstants.ConsentRequired;
+            var inputErrors = new[] { phoneErr, emailErr, consentErr }.Where(x => x != null).ToList();
+            if (inputErrors.Count > 0)
+            {
+                MessageBox.Show(string.Join("\n", inputErrors), "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                Control first = phoneErr != null ? inpPhone : emailErr != null ? inpEmail : chkConsent;
+                first.Focus();
+                return;
+            }
 
-            // Chụp ảnh không bắt buộc; có ảnh thì so khớp lại, khớp hay không vẫn gửi
+            // Chụp ảnh không bắt buộc; có ảnh thì so khớp lại, không đạt ngưỡng thì dừng để chụp lại
             if (_CamFaceBts != null)
-                CompareFaces();
+            {
+                if (!CompareFaces())
+                    return;
+            }
             else
                 _lastMatchScore = null;
 
@@ -958,34 +986,38 @@ namespace IdCard.Hanel
             btnSend.Text = "ĐANG GỬI...";
             SetStatusMessage("ĐANG GỬI THÔNG TIN...", Theme.Info, true);
             var errors = new List<string>();
+            var cardData = new WebhookCardData(_cardData!, _ChipFaceBts!,_CamFaceBts, _ocrFrontBts, _ocrBackBts, _readerSerial, Phone, Email);
+            string? sessionId = null;
+            string? v1Token = null;
             try
             {
-                string? sessionId = null;
                 if (hasV1)
                 {
                     try
                     {
-                        var (requestId, sid) = await SendNfcInfoAsync();
+                        var (requestId, sid, token) = await WebhookClient.SendNfcInfoAsync(
+                            _settings.WebhookUrl, _settings.WebhookUser, _settings.GetWebhookPassword(), cardData);
                         sessionId = sid;
+                        v1Token = token;
                         WriteLog($"SendNfcInfo: requestId={requestId}, sessionId={sessionId}");
                     }
                     catch (Exception ex)
                     {
                         WriteLog($"SendNfcInfo: {ex}");
-                        errors.Add((hasV2 ? "Webhook: " : "") + DescribeSendError(ex));
+                        errors.Add((hasV2 ? "Webhook: " : "") + WebhookClient.DescribeSendError(ex));
                     }
                 }
                 if (hasV2)
                 {
                     try
                     {
-                        await SendIdentificationV2Async(sessionId);
+                        await WebhookClient.SendIdentificationV2Async(_settings.WebhookUrlV2, sessionId, cardData);
                         WriteLog($"SendIdentificationV2: sessionId={sessionId}");
                     }
                     catch (Exception ex)
                     {
                         WriteLog($"SendIdentificationV2: {ex}");
-                        errors.Add((hasV1 ? "Webhook v2: " : "") + DescribeSendError(ex));
+                        //errors.Add((hasV1 ? "Webhook v2: " : "") + WebhookClient.DescribeSendError(ex));
                     }
                 }
             }
@@ -996,245 +1028,33 @@ namespace IdCard.Hanel
                 btnSend.Text = "GỬI THÔNG TIN";
             }
 
-            if (errors.Count == 0 && hasV1 && hasV2)
+            if (errors.Count > 0)
+            {
+                SetStatusMessage("GỬI THẤT BẠI", Theme.Danger, false);
+                MessageBox.Show("Gửi thông tin thất bại:\n" + string.Join("\n", errors), "Thông báo lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            SetStatusMessage("GỬI THÀNH CÔNG", Theme.Success, false);
+            if (sessionId != null && v1Token != null)
+            {
+                // Webhook v1 thành công: hiển thị thông tin đăng ký, xem phiếu đăng ký và ký tay
+                var dg = _cardData!.Dg13File!;
+                var customer = new RegisterCustomerInfo(dg.Name, dg.DocumentNumber, dg.DateOfBirth, dg.Sex, dg.IssueDate, dg.Hometown, dg.Address);
+                using var registerForm = new RegisterInfoForm(customer, _settings.WebhookUrl, v1Token, sessionId);
+                registerForm.ShowDialog(this);
+            }
+            if (hasV1 && hasV2)
             {
                 // Gửi thành công cả 2 luồng (webhook + webhook v2) thì tự động đóng tool
-                SetStatusMessage("GỬI THÀNH CÔNG - ĐANG ĐÓNG ỨNG DỤNG...", Theme.Success, false);
                 WriteLog("Gửi thành công cả 2 luồng, tự động đóng ứng dụng.");
                 await Task.Delay(1500);
                 Close();
             }
-            else if (errors.Count == 0)
+            else if (sessionId == null || v1Token == null)
             {
-                SetStatusMessage("GỬI THÀNH CÔNG", Theme.Success, false);
                 MessageBox.Show("Gửi thành công.", "Kết quả gửi", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
-            else
-            {
-                SetStatusMessage("GỬI THẤT BẠI", Theme.Danger, false);
-                MessageBox.Show("Gửi thông tin thất bại:\n" + string.Join("\n", errors), "Thông báo lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        private static string DescribeSendError(Exception ex) => ex switch
-        {
-            ApiException => ex.Message,
-            HttpRequestException { StatusCode: System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden } => "Sai tài khoản hoặc mật khẩu.",
-            HttpRequestException { StatusCode: System.Net.HttpStatusCode.NotFound } => "Không tìm thấy địa chỉ API, vui lòng kiểm tra lại Webhook URL.",
-            HttpRequestException { StatusCode: not null } h => $"Máy chủ trả về lỗi {(int)h.StatusCode.Value}.",
-            TaskCanceledException => "Hết thời gian chờ phản hồi từ máy chủ.",
-            _ => "Không kết nối được tới máy chủ."
-        };
-
-        /// <summary>
-        /// Gửi thông tin CCCD sang webhook v2: POST {WebhookUrlV2}/api/webhook/send-identification
-        /// với body {status: 0, msg, data: {...}} (status = 0 là đọc thẻ thành công).
-        /// </summary>
-        private async Task SendIdentificationV2Async(string? sessionId)
-        {
-            var card = _cardData!;
-            var dg13 = card.Dg13File!;
-            string url = _settings.WebhookUrlV2.TrimEnd('/');
-            const string path = "/api/webhook/send-identification";
-            if (!url.EndsWith(path, StringComparison.OrdinalIgnoreCase))
-                url += path;
-
-            var body = new
-            {
-                status = 0,
-                msg = (string?)null,
-                data = new
-                {
-                    sessionId = sessionId ?? Guid.NewGuid().ToString(),
-                    identification = dg13.DocumentNumber,
-                    previousNumber = dg13.PreviousNumber,
-                    name = dg13.Name,
-                    dob = dg13.DateOfBirth,
-                    sex = ToSexCode(dg13.Sex),
-                    nationality = "VNM",
-                    nation = dg13.Nation,
-                    doe = dg13.ExpiredDate,
-                    por = dg13.Address,
-                    poo = dg13.Hometown,
-                    religion = dg13.Religion,
-                    registerDate = dg13.IssueDate,
-                    symbol = dg13.Character,
-                    father = dg13.FatherName,
-                    mother = dg13.MotherName,
-                    couple = dg13.PartnerName,
-                    mrz = card.Dg1File?.Mrz ?? "",
-                    nfcImg = Convert.ToBase64String(_ChipFaceBts!)
-                }
-            };
-
-            using var request = new HttpRequestMessage(HttpMethod.Post, url)
-            {
-                Content = System.Net.Http.Json.JsonContent.Create(body)
-            };
-            using var response = await _http.SendAsync(request);
-            response.EnsureSuccessStatusCode();
-        }
-
-        /// <summary>Lỗi nghiệp vụ máy chủ trả về (status = 0), Message là thông báo hiển thị cho người dùng.</summary>
-        private sealed class ApiException : Exception
-        {
-            public ApiException(string message) : base(message) { }
-        }
-
-        private const string PolicyContent = "Tôi đã đọc và đồng ý với chính sách xử lý dữ liệu cá nhân";
-        private const string PolicyRef = "https://softdreams.vn/chinh-sach-bao-mat/";
-
-        /// <summary>Đăng nhập lấy token rồi gửi NFCInfo, trả về requestId và sessionId từ máy chủ.</summary>
-        private async Task<(string? RequestId, string? SessionId)> SendNfcInfoAsync()
-        {
-            var card = _cardData!;
-            var dg13 = card.Dg13File!;
-            string baseUrl = _settings.WebhookUrl.TrimEnd('/');
-
-            var auth = await PostApiAsync(baseUrl + "/api/authenticate",
-                new { username = _settings.WebhookUser, password = _settings.GetWebhookPassword() }, null);
-            string? token = auth.ValueKind == JsonValueKind.Object && auth.TryGetProperty("token", out var t) && t.ValueKind == JsonValueKind.String ? t.GetString() : null;
-            if (string.IsNullOrEmpty(token))
-                throw new ApiException("Máy chủ không trả về token đăng nhập.");
-
-            string id = Guid.NewGuid().ToString();
-            string mrz = card.Dg1File?.Mrz ?? "";
-            var policy = new Dictionary<string, string>
-            {
-                ["time"] = DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss", CultureInfo.InvariantCulture),
-                ["content"] = PolicyContent,
-                ["number"] = dg13.DocumentNumber ?? "",
-                ["ref"] = PolicyRef,
-                ["ip"] = await GetPublicIpAsync()
-            };
-            var jsonOpts = new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
-
-            var payload = new
-            {
-                type = "CCCD",
-                number = dg13.DocumentNumber,
-                name = dg13.Name,
-                dob = dg13.DateOfBirth,
-                sex = ToSexCode(dg13.Sex),
-                nationality = "VNM",
-                doe = dg13.ExpiredDate,
-                por = dg13.Address,
-                poo = dg13.Hometown,
-                religion = dg13.Religion,
-                nation = dg13.Nation,
-                registerDate = dg13.IssueDate,
-                symbol = dg13.Character,
-                father = dg13.FatherName,
-                mother = dg13.MotherName,
-                couple = dg13.PartnerName,
-                identity = dg13.PreviousNumber,
-                sodDg = card.Sod != null ? Convert.ToBase64String(card.Sod) : null,
-                id,
-                deviceId = _readerSerial,
-                mrz,
-                nfcImg = Convert.ToBase64String(_ChipFaceBts!),
-                ocrBackImg = _ocrBackBts != null ? Convert.ToBase64String(_ocrBackBts) : null,
-                ocrFrontImg = _ocrFrontBts != null ? Convert.ToBase64String(_ocrFrontBts) : null,
-                faceImg = _CamFaceBts != null ? Convert.ToBase64String(_CamFaceBts) : null,
-                policyAgreement = JsonSerializer.Serialize(policy, jsonOpts),
-                extraInfo = (string?)null
-            };
-
-            var data = await PostApiAsync(baseUrl + "/api/nfc-scanner/send-data", payload, token);
-            string? Str(string name) => data.ValueKind == JsonValueKind.Object && data.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
-            return (Str("requestId") ?? id, Str("sessionId"));
-        }
-
-        /// <summary>
-        /// Gọi API trả về dạng {status, data, msg, errorCode}: status = 1 thì trả về data, ngược lại ném ApiException kèm msg.
-        /// </summary>
-        private static async Task<JsonElement> PostApiAsync(string url, object body, string? token)
-        {
-            using var request = new HttpRequestMessage(HttpMethod.Post, url)
-            {
-                Content = System.Net.Http.Json.JsonContent.Create(body)
-            };
-            if (token != null)
-                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-            using var response = await _http.SendAsync(request);
-            string text = await response.Content.ReadAsStringAsync();
-
-            JsonElement root;
-            try
-            {
-                using var doc = JsonDocument.Parse(text);
-                root = doc.RootElement.Clone();
-            }
-            catch (JsonException)
-            {
-                response.EnsureSuccessStatusCode();
-                throw new ApiException("Phản hồi từ máy chủ không hợp lệ.");
-            }
-
-            bool ok = root.ValueKind == JsonValueKind.Object && root.TryGetProperty("status", out var st)
-                && st.ValueKind == JsonValueKind.Number && st.GetInt32() == 1;
-            if (!ok)
-            {
-                string? msg = root.ValueKind == JsonValueKind.Object && root.TryGetProperty("msg", out var m) && m.ValueKind == JsonValueKind.String ? m.GetString() : null;
-                if (string.IsNullOrWhiteSpace(msg))
-                {
-                    response.EnsureSuccessStatusCode();
-                    msg = "Máy chủ trả về trạng thái thất bại.";
-                }
-                throw new ApiException(msg);
-            }
-            response.EnsureSuccessStatusCode();
-            return root.TryGetProperty("data", out var data) ? data : default;
-        }
-
-        // Máy sau router chỉ có IP nội bộ, IP public phải hỏi dịch vụ bên ngoài; thử lần lượt để có dự phòng
-        private static readonly string[] PublicIpServices =
-        {
-            "https://api.ipify.org",
-            "https://icanhazip.com",
-            "https://checkip.amazonaws.com",
-            "https://ifconfig.me/ip"
-        };
-
-        /// <summary>IP public của máy, không dịch vụ nào trả lời thì dùng IP nội bộ.</summary>
-        private static async Task<string> GetPublicIpAsync()
-        {
-            foreach (var url in PublicIpServices)
-            {
-                try
-                {
-                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-                    string ip = (await _http.GetStringAsync(url, cts.Token)).Trim();
-                    if (System.Net.IPAddress.TryParse(ip, out _))
-                        return ip;
-                }
-                catch (Exception ex)
-                {
-                    WriteLog($"GetPublicIp {url}: {ex.Message}");
-                }
-            }
-            try
-            {
-                var local = System.Net.Dns.GetHostAddresses(System.Net.Dns.GetHostName())
-                    .FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
-                return local?.ToString() ?? "";
-            }
-            catch (Exception)
-            {
-                return "";
-            }
-        }
-
-        /// <summary>"Nam" → "M", "Nữ" → "F".</summary>
-        private static string? ToSexCode(string? sex)
-        {
-            string s = (sex ?? "").Trim().Normalize(NormalizationForm.FormC).ToLowerInvariant();
-            return s switch
-            {
-                "nam" or "m" or "male" => "M",
-                "nữ" or "nu" or "f" or "female" => "F",
-                _ => sex
-            };
         }
 
         private void chkAutoRead_CheckedChanged(object sender, EventArgs e)
@@ -1350,29 +1170,32 @@ namespace IdCard.Hanel
             //_fingers = dlg.Fingers;
         }
 
-        private void btnRefresh_Click(object sender, EventArgs e)
+        private static readonly Regex PhoneRegex = new(ValidationConstants.PhonePattern);
+        private static readonly Regex EmailRegex = new(ValidationConstants.EmailPattern);
+
+        /// <summary>Số điện thoại đã nhập (đã bỏ khoảng trắng), rỗng nếu chưa nhập.</summary>
+        private string Phone => inpPhone.Text.Trim();
+        /// <summary>Email đã nhập (đã bỏ khoảng trắng), rỗng nếu chưa nhập.</summary>
+        private string Email => inpEmail.Text.Trim();
+
+        private void inpPhone_KeyPress(object? sender, KeyPressEventArgs e)
         {
-            if (_reader == null || !_reader.IsDeviceConnected())
-            {
-                MessageBox.Show("Chưa kết nối thiết bị đọc thẻ!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            // Chỉ cho nhập số, dấu + chỉ ở đầu
+            if (char.IsControl(e.KeyChar) || char.IsDigit(e.KeyChar))
                 return;
-            }
-            if (!_cardPresent)
-            {
-                MessageBox.Show("Vui lòng cắm thẻ vào thiết bị!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            if (e.KeyChar == '+' && inpPhone.SelectionStart == 0 && !inpPhone.Text.Contains('+'))
                 return;
-            }
-
-            ResetFormInfo();
-            ResetPortrait();
-            // Tắt đèn chip, bật lại theo kết quả lần đọc mới
-            indChipActive.State = IndicatorState.None;
-
-            SetStatusMessage("ĐANG ĐỌC THẺ...", Theme.Info, true);
-            _reader.StartReadCard("", true);
-            _stw.Restart();
-            _timer.Start();
+            e.Handled = true;
         }
+
+        /// <summary>Kiểm tra khi bấm Gửi, lỗi báo bằng hộp thoại. Trả về thông báo lỗi, null nếu hợp lệ.</summary>
+        private string? ValidatePhone() =>
+            Phone.Length == 0 ? ValidationConstants.PhoneRequired
+            : PhoneRegex.IsMatch(Phone) ? null : ValidationConstants.PhoneInvalid;
+
+        private string? ValidateEmail() =>
+            Email.Length == 0 ? ValidationConstants.EmailRequired
+            : EmailRegex.IsMatch(Email) ? null : ValidationConstants.EmailInvalid;
 
         private void ResetPortrait()
         {
@@ -1380,8 +1203,6 @@ namespace IdCard.Hanel
             btnCaptureFace.Visible = true;
             _CamFaceBts = null;
             lblMatchResult.Visible = false;
-            indLiveFace.Text = "Ảnh chụp trực tiếp";
-            indLiveFace.State = IndicatorState.None;
         }
 
         private void btnRereadcard1_Click(object sender, EventArgs e)
