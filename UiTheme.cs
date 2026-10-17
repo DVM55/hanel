@@ -554,12 +554,15 @@ namespace IdCard.Hanel
 
     /// <summary>
     /// Ô tích chọn kèm dòng chữ; phần đặt trong [ ] của Text được tô màu <see cref="HighlightColor"/>.
+    /// Nếu có đăng ký <see cref="LinkClicked"/> thì đoạn [ ] đầu tiên là liên kết: bấm vào gọi sự kiện đó thay vì tích chọn.
     /// </summary>
     public class ConsentCheck : Control
     {
         private bool _checked;
         private bool _invalid;
         private bool _hover;
+        private bool _linkHover;
+        private Rectangle _linkRect;
 
         public event EventHandler? CheckedChanged;
 
@@ -601,17 +604,40 @@ namespace IdCard.Hanel
         [Category("Appearance")]
         public Color HighlightColor { get; set; } = Theme.Danger;
 
+        /// <summary>Bấm vào đoạn [ ] đầu tiên của Text (chỉ là liên kết khi có đăng ký sự kiện này).</summary>
+        public event EventHandler? LinkClicked;
+
+        private bool HasLink => LinkClicked != null;
+
+        private bool IsOverLink(Point p) => HasLink && _linkRect.Contains(p);
+
         protected override void OnTextChanged(EventArgs e)
         {
             base.OnTextChanged(e);
             Invalidate();
         }
 
-        protected override void OnClick(EventArgs e)
+        protected override void OnMouseClick(MouseEventArgs e)
         {
-            base.OnClick(e);
+            base.OnMouseClick(e);
             Focus();
-            Checked = !Checked;
+            if (e.Button != MouseButtons.Left)
+                return;
+            if (IsOverLink(e.Location))
+                LinkClicked?.Invoke(this, EventArgs.Empty);
+            else
+                Checked = !Checked;
+        }
+
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+            bool over = IsOverLink(e.Location);
+            if (over != _linkHover)
+            {
+                _linkHover = over;
+                Invalidate();
+            }
         }
 
         protected override void OnKeyDown(KeyEventArgs e)
@@ -622,7 +648,7 @@ namespace IdCard.Hanel
         }
 
         protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); _hover = true; Invalidate(); }
-        protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hover = false; Invalidate(); }
+        protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hover = false; _linkHover = false; Invalidate(); }
         protected override void OnGotFocus(EventArgs e) { base.OnGotFocus(e); Invalidate(); }
         protected override void OnLostFocus(EventArgs e) { base.OnLostFocus(e); Invalidate(); }
 
@@ -663,13 +689,19 @@ namespace IdCard.Hanel
             int lineH = TextRenderer.MeasureText(g, "Ag", Font, Size.Empty, flags).Height;
             int y = (Height - lineH) / 2;
             var parts = (Text ?? "").Split('[', ']');
+            _linkRect = Rectangle.Empty;
             for (int i = 0; i < parts.Length && x < Width; i++)
             {
                 if (parts[i].Length == 0)
                     continue;
                 Color color = i % 2 == 1 ? HighlightColor : ForeColor;
                 int w = TextRenderer.MeasureText(g, parts[i], Font, Size.Empty, flags).Width;
-                TextRenderer.DrawText(g, parts[i], Font, new Rectangle(x, y, Width - x, lineH), color, flags | TextFormatFlags.EndEllipsis);
+                bool isLink = i == 1 && HasLink;
+                if (isLink)
+                    _linkRect = new Rectangle(x, y, w, lineH);
+                // Liên kết được gạch chân khi rê chuột vào
+                using var underline = isLink && _linkHover ? new Font(Font, Font.Style | FontStyle.Underline) : null;
+                TextRenderer.DrawText(g, parts[i], underline ?? Font, new Rectangle(x, y, Width - x, lineH), color, flags | TextFormatFlags.EndEllipsis);
                 x += w;
             }
         }

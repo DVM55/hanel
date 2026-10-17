@@ -1,62 +1,95 @@
-using Microsoft.Web.WebView2.Core;
-using Microsoft.Web.WebView2.WinForms;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
+using Docnet.Core;
+using Docnet.Core.Models;
 
 namespace IdCard.Hanel
 {
-    /// <summary>
-    /// Xem PDF trực tiếp trong ứng dụng bằng WebView2 (trình xem PDF của Edge).
-    /// Nội dung PDF lấy từ bộ nhớ qua một URL ảo, không ghi file xuống máy; ẩn nút tải về / lưu trên thanh công cụ.
-    /// </summary>
     internal sealed class PdfViewerForm : Form
     {
-        /// <summary>URL ảo chỉ dùng nội bộ để WebView2 yêu cầu nội dung PDF, không đi ra mạng.</summary>
-        private const string PdfUrl = "https://pdf.hanel.local/document.pdf";
+        private const double RenderScale = 2.0;
+        private const int PageGap = 12;
 
-        private readonly WebView2 _web = new() { Dock = DockStyle.Fill };
-        private readonly byte[] _pdf;
+        private readonly FlowLayoutPanel _pages = new()
+        {
+            Dock = DockStyle.Fill,
+            AutoScroll = true,
+            FlowDirection = FlowDirection.TopDown,
+            WrapContents = false,
+            BackColor = Color.FromArgb(0x52, 0x56, 0x59),
+            Padding = new Padding(PageGap)
+        };
+
+        private readonly List<Bitmap> _images = new();
 
         public PdfViewerForm(string title, byte[] pdf)
         {
-            _pdf = pdf;
             Text = title;
             StartPosition = FormStartPosition.CenterParent;
             ClientSize = new Size(900, 1000);
             MinimizeBox = false;
-            Controls.Add(_web);
+            Controls.Add(_pages);
+
+            RenderPages(pdf);
+            _pages.Resize += (_, _) => FitPages();
+            FitPages();
         }
 
-        /// <summary>
-        /// Khởi tạo WebView2 trước khi hiển thị; trả về false nếu máy chưa cài WebView2 Runtime.
-        /// Thư mục dữ liệu đặt trong %LocalAppData% để chạy được cả khi exe nằm ở thư mục không có quyền ghi.
-        /// </summary>
-        public async Task<bool> LoadAsync()
+        private void RenderPages(byte[] pdf)
         {
+            using var reader = DocLib.Instance.GetDocReader(pdf, new PageDimensions(RenderScale));
+            for (int i = 0; i < reader.GetPageCount(); i++)
+            {
+                using var page = reader.GetPageReader(i);
+                var bmp = ToBitmap(page.GetImage(), page.GetPageWidth(), page.GetPageHeight());
+                _images.Add(bmp);
+                _pages.Controls.Add(new PictureBox
+                {
+                    Image = bmp,
+                    SizeMode = PictureBoxSizeMode.Zoom,
+                    BackColor = Color.White,
+                    Margin = new Padding(0, 0, 0, PageGap)
+                });
+            }
+        }
+
+        /// <summary>PDFium trả về BGRA có nền trong suốt, vẽ lên nền trắng để hiển thị.</summary>
+        private static Bitmap ToBitmap(byte[] bgra, int width, int height)
+        {
+            using var raw = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+            var data = raw.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
             try
             {
-                string dataDir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HanelEKYC", "WebView2");
-                var env = await CoreWebView2Environment.CreateAsync(null, dataDir);
-                await _web.EnsureCoreWebView2Async(env);
-
-                var core = _web.CoreWebView2;
-                core.Settings.HiddenPdfToolbarItems = CoreWebView2PdfToolbarItems.Save | CoreWebView2PdfToolbarItems.SaveAs;
-                core.Settings.AreDefaultContextMenusEnabled = false;
-                core.Settings.AreDevToolsEnabled = false;
-                core.DownloadStarting += (_, e) => e.Cancel = true;
-
-                core.AddWebResourceRequestedFilter(PdfUrl, CoreWebView2WebResourceContext.All);
-                core.WebResourceRequested += (_, e) =>
-                {
-                    e.Response = core.Environment.CreateWebResourceResponse(
-                        new MemoryStream(_pdf), 200, "OK", "Content-Type: application/pdf");
-                };
-                core.Navigate(PdfUrl);
-                return true;
+                for (int y = 0; y < height; y++)
+                    Marshal.Copy(bgra, y * width * 4, data.Scan0 + y * data.Stride, width * 4);
             }
-            catch (WebView2RuntimeNotFoundException)
+            finally
             {
-                return false;
+                raw.UnlockBits(data);
             }
+
+            var bmp = new Bitmap(width, height, PixelFormat.Format24bppRgb);
+            using var g = Graphics.FromImage(bmp);
+            g.Clear(Color.White);
+            g.DrawImage(raw, 0, 0, width, height);
+            return bmp;
+        }
+
+        /// <summary>Co giãn các trang theo chiều rộng khung xem, giữ đúng tỉ lệ.</summary>
+        private void FitPages()
+        {
+            int width = Math.Max(100, _pages.ClientSize.Width - _pages.Padding.Horizontal - SystemInformation.VerticalScrollBarWidth);
+            _pages.SuspendLayout();
+            foreach (PictureBox pb in _pages.Controls)
+                pb.Size = new Size(width, (int)((long)width * pb.Image.Height / pb.Image.Width));
+            _pages.ResumeLayout();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+                _images.ForEach(b => b.Dispose());
+            base.Dispose(disposing);
         }
     }
 }

@@ -1127,9 +1127,9 @@
             btnSend.ForeColor = Color.White;
             btnSend.Margin = new Padding(0, 6, 0, 0);
             btnSend.Name = "btnSend";
-            btnSend.Size = new Size(160, 44);
+            btnSend.Size = new Size(250, 44);
             btnSend.TabIndex = 2;
-            btnSend.Text = "GỬI THÔNG TIN";
+            btnSend.Text = "ĐĂNG KÝ CHỨNG THƯ SỐ";
             btnSend.UseVisualStyleBackColor = false;
             btnSend.Click += btnSend_Click;
             //

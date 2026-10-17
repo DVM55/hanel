@@ -38,7 +38,7 @@ namespace IdCard.Hanel
         private const string SendIdentificationPath = "/api/webhook/send-identification";
         private const string Nationality = "VNM";
         /// <summary>policyStatus khi người dùng đã tích đồng ý điều khoản.</summary>
-        private const string PolicyStatusAccepted = "ACCEPTED";
+        private const string PolicyStatusAccepted = "OK";
         /// <summary>Định dạng acceptTime theo Constants.DatePattern.DateTime phía server.</summary>
         private const string AcceptTimeFormat = "yyyy-MM-dd HH:mm:ss";
         /// <summary>Giá trị status trong response báo thành công: webhook v1 là 1, webhook v2 là 0.</summary>
@@ -159,7 +159,7 @@ namespace IdCard.Hanel
                 extraInfo = (string?)null,
                 ocrBackImg = (string?)null,
                 ocrFrontImg = (string?)null,
-                policyAggrement = new
+                policyAgreement = new
                 {
                     policyStatus = PolicyStatusAccepted,
                     acceptTime = DateTime.Now.ToString(AcceptTimeFormat, CultureInfo.InvariantCulture),

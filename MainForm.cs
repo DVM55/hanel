@@ -46,11 +46,19 @@ namespace IdCard.Hanel
             Cursor = Cursors.Hand,
             Visible = false
         };
+        /// <summary>Trang chính sách bảo mật mở khi bấm vào "chính sách, điều khoản" ở ô đồng ý.</summary>
+        private const string PrivacyPolicyUrl = "https://softdreams.vn/chinh-sach-bao-mat";
+
         public MainForm()
         {
             InitializeComponent();
             // Icon trên thanh tiêu đề/taskbar lấy từ icon của exe (app.ico)
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch (Exception) { }
+            chkConsent.LinkClicked += (_, _) =>
+            {
+                using var policy = new PolicyViewerForm("Chính sách bảo vệ dữ liệu cá nhân", PrivacyPolicyUrl);
+                policy.ShowDialog(this);
+            };
             picCamera.Controls.Add(lblMatchResult);
             lblMatchResult.Click += btnFaceMatching_Click;
             Resize += (s, e) => ApplyResponsiveLayout();
@@ -912,9 +920,6 @@ namespace IdCard.Hanel
                 _lastMatchScore = score;
                 int threshold = (int)numMatchThreshold.Value;
                 bool matched = score >= threshold;
-                lblMatchResult.Text = matched ? $"SUCCESS ({score}%)" : $"FAIL ({score}%)";
-                lblMatchResult.BackColor = matched ? Theme.Success : Theme.Danger;
-                lblMatchResult.Visible = true;
                 if (!matched)
                 {
                     SetStatusMessage("ẢNH CHÂN DUNG KHÔNG KHỚP", Theme.Danger, false);
@@ -1025,7 +1030,7 @@ namespace IdCard.Hanel
             {
                 _sending = false;
                 btnSend.Enabled = true;
-                btnSend.Text = "GỬI THÔNG TIN";
+                btnSend.Text = "ĐĂNG KÝ CHỨNG THƯ SỐ";
             }
 
             if (errors.Count > 0)
@@ -1042,7 +1047,14 @@ namespace IdCard.Hanel
                 var dg = _cardData!.Dg13File!;
                 var customer = new RegisterCustomerInfo(dg.Name, dg.DocumentNumber, dg.DateOfBirth, dg.Sex, dg.IssueDate, dg.Hometown, dg.Address);
                 using var registerForm = new RegisterInfoForm(customer, _settings.WebhookUrl, v1Token, sessionId);
-                registerForm.ShowDialog(this);
+                if (registerForm.ShowDialog(this) == DialogResult.OK)
+                {
+                    // Đăng ký chứng thư số thành công: báo người dùng, bấm OK hoặc sau 2 giây thì tự đóng tool
+                    WriteLog("Đăng ký chứng thư số thành công, tự động đóng ứng dụng.");
+                    AutoCloseMessageBox.Show(this, "Đăng ký chứng thư số thành công.", "Thông báo", TimeSpan.FromSeconds(2));
+                    Close();
+                    return;
+                }
             }
             if (hasV1 && hasV2)
             {

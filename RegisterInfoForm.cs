@@ -41,7 +41,7 @@ namespace IdCard.Hanel
             _sessionId = sessionId;
 
             Text = "Thông tin đăng ký";
-            Font = new Font("Segoe UI", 9.75F);
+            Font = new Font("Segoe UI", 12F);
             BackColor = Theme.Background;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
@@ -49,12 +49,14 @@ namespace IdCard.Hanel
             StartPosition = FormStartPosition.CenterParent;
             AutoScaleMode = AutoScaleMode.Dpi;
             AutoScaleDimensions = new SizeF(96F, 96F);
-            ClientSize = new Size(420, 640);
+            // Màn lớn để dễ đọc thông tin và có nhiều chỗ ký tay; không vượt quá vùng làm việc của màn hình
+            var work = Screen.FromPoint(Cursor.Position).WorkingArea;
+            ClientSize = new Size(Math.Min(640, work.Width - 40), Math.Min(900, work.Height - 60));
 
             var layout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                Padding = new Padding(12),
+                Padding = new Padding(16),
                 ColumnCount = 1,
                 RowCount = 4
             };
@@ -69,10 +71,10 @@ namespace IdCard.Hanel
             layout.Controls.Add(BuildRegisterCard(), 0, 1);
             layout.Controls.Add(BuildSignatureCard(), 0, 2);
 
-            _btnStart.Text = "Bắt đầu";
+            _btnStart.Text = "Đăng ký";
             _btnStart.Dock = DockStyle.Fill;
-            _btnStart.Height = 44;
-            _btnStart.Margin = new Padding(0, 10, 0, 0);
+            _btnStart.Height = 56;
+            _btnStart.Margin = new Padding(0, 14, 0, 0);
             _btnStart.FlatStyle = FlatStyle.Flat;
             _btnStart.FlatAppearance.BorderSize = 0;
             _btnStart.BackColor = Accent;
@@ -91,10 +93,10 @@ namespace IdCard.Hanel
                 Dock = DockStyle.Top,
                 AutoSize = true,
                 ColumnCount = 2,
-                Padding = new Padding(12, 10, 12, 10),
+                Padding = new Padding(16, 14, 16, 14),
                 BackColor = Theme.Surface
             };
-            rows.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 28));
+            rows.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 36));
             rows.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
             var title = new Label
@@ -103,7 +105,7 @@ namespace IdCard.Hanel
                 AutoSize = true,
                 Font = new Font(Font, FontStyle.Bold),
                 ForeColor = Theme.TextPrimary,
-                Margin = new Padding(0, 0, 0, 8)
+                Margin = new Padding(0, 0, 0, 10)
             };
             rows.Controls.Add(title, 0, 0);
             rows.SetColumnSpan(title, 2);
@@ -119,7 +121,7 @@ namespace IdCard.Hanel
 
             card.Controls.Add(rows);
             // CardPanel không tự co theo nội dung docked, tính chiều cao theo bảng thông tin
-            card.Height = rows.GetPreferredSize(new Size(ClientSize.Width - 24, 0)).Height + 2;
+            card.Height = rows.GetPreferredSize(new Size(ClientSize.Width - 32, 0)).Height + 2;
             return card;
         }
 
@@ -128,26 +130,26 @@ namespace IdCard.Hanel
             rows.Controls.Add(new Label
             {
                 Text = glyph,
-                Font = new Font("Segoe MDL2 Assets", 10F),
+                Font = new Font("Segoe MDL2 Assets", 13F),
                 ForeColor = Theme.TextPrimary,
                 AutoSize = true,
-                Margin = new Padding(0, 4, 0, 4)
+                Margin = new Padding(0, 6, 0, 6)
             });
             rows.Controls.Add(new Label
             {
                 Text = string.IsNullOrWhiteSpace(value) ? "---" : value,
                 ForeColor = Theme.TextPrimary,
                 AutoSize = true,
-                MaximumSize = new Size(340, 0),
-                Margin = new Padding(0, 3, 0, 3)
+                MaximumSize = new Size(ClientSize.Width - 100, 0),
+                Margin = new Padding(0, 5, 0, 5)
             });
         }
 
         private Control BuildRegisterCard()
         {
             var card = NewCard();
-            card.Height = 52;
-            card.Margin = new Padding(0, 10, 0, 0);
+            card.Height = 66;
+            card.Margin = new Padding(0, 14, 0, 0);
 
             var label = new Label
             {
@@ -155,7 +157,7 @@ namespace IdCard.Hanel
                 Font = new Font(Font, FontStyle.Bold),
                 ForeColor = Theme.TextPrimary,
                 AutoSize = true,
-                Location = new Point(12, 16)
+                Location = new Point(16, 20)
             };
             _lnkView.Text = "Xem";
             _lnkView.AutoSize = true;
@@ -164,7 +166,7 @@ namespace IdCard.Hanel
             _lnkView.LinkBehavior = LinkBehavior.HoverUnderline;
             _lnkView.Font = new Font(Font, FontStyle.Bold);
             _lnkView.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            _lnkView.Location = new Point(card.Width - 50, 16);
+            _lnkView.Location = new Point(card.Width - 66, 20);
             _lnkView.LinkClicked += async (_, _) => await ViewRegisterAsync();
 
             card.Controls.Add(label);
@@ -175,16 +177,16 @@ namespace IdCard.Hanel
         private Control BuildSignatureCard()
         {
             var card = NewCard();
-            card.Margin = new Padding(0, 10, 0, 0);
+            card.Margin = new Padding(0, 14, 0, 0);
 
-            var header = new Panel { Dock = DockStyle.Top, Height = 40, BackColor = Theme.Surface };
+            var header = new Panel { Dock = DockStyle.Top, Height = 52, BackColor = Theme.Surface };
             var label = new Label
             {
                 Text = "Ký PĐK và Hợp đồng",
                 Font = new Font(Font, FontStyle.Bold),
                 ForeColor = Theme.TextPrimary,
                 AutoSize = true,
-                Location = new Point(12, 12)
+                Location = new Point(16, 15)
             };
             var btnUndo = IconButton("", Accent, "Xoá nét vừa ký");
             btnUndo.Click += (_, _) => _signature.Undo();
@@ -196,7 +198,7 @@ namespace IdCard.Hanel
                 AutoSize = true,
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = false,
-                Padding = new Padding(0, 4, 6, 0)
+                Padding = new Padding(0, 4, 8, 0)
             };
             buttons.Controls.Add(btnUndo);
             buttons.Controls.Add(btnClear);
@@ -217,10 +219,10 @@ namespace IdCard.Hanel
             var btn = new Button
             {
                 Text = glyph,
-                Font = new Font("Segoe MDL2 Assets", 12F),
+                Font = new Font("Segoe MDL2 Assets", 15F),
                 ForeColor = color,
                 FlatStyle = FlatStyle.Flat,
-                Size = new Size(32, 32),
+                Size = new Size(44, 44),
                 Cursor = Cursors.Hand,
                 Margin = new Padding(2, 0, 2, 0)
             };
@@ -248,11 +250,7 @@ namespace IdCard.Hanel
                 _log.Info($"ViewRegister: sessionId={_sessionId}, {pdf.Length} bytes");
 
                 using var viewer = new PdfViewerForm("Phiếu đăng ký", pdf);
-                if (await viewer.LoadAsync())
-                    viewer.ShowDialog(this);
-                else
-                    MessageBox.Show(this, "Máy chưa cài Microsoft Edge WebView2 Runtime nên không xem được phiếu đăng ký.",
-                        "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                viewer.ShowDialog(this);
             }
             catch (Exception ex)
             {
