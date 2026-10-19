@@ -83,7 +83,7 @@ namespace IdCard.Hanel
         public static async Task<byte[]> GetCertificateRegisterAsync(string webhookUrl, string token, string sessionId)
         {
             string url = webhookUrl.TrimEnd('/') + GetCertificateRegisterPath + "?sessionId=" + Uri.EscapeDataString(sessionId);
-            var data = await SendApiAsync(HttpMethod.Get, url, null, token, V1SuccessStatus);
+            var data = await SendApiAsync(HttpMethod.Get, url, null, token, V1SuccessStatus, sessionId);
             string? base64 = data.ValueKind == JsonValueKind.String ? data.GetString() : null;
             if (string.IsNullOrEmpty(base64))
                 throw new ApiException("Máy chủ không trả về phiếu đăng ký.");
@@ -98,21 +98,22 @@ namespace IdCard.Hanel
         {
             string url = webhookUrl.TrimEnd('/') + SendSignImagePath;
             var body = new { sessionId, signBase64 = Convert.ToBase64String(signPng) };
-            await SendApiAsync(HttpMethod.Post, url, body, token, V1SuccessStatus);
+            await SendApiAsync(HttpMethod.Post, url, body, token, V1SuccessStatus, sessionId);
         }
 
         /// <summary>
         /// Gửi thông tin CCCD sang webhook v2: POST {webhookUrlV2}/api/webhook/send-identification
         /// với body {status: 0, msg, data: {...}} (status = 0 là đọc thẻ thành công).
         /// </summary>
-        public static async Task SendIdentificationV2Async(string webhookUrlV2, string? sessionId, WebhookCardData d)
+        public static async Task SendIdentificationV2Async(string webhookUrlV2, string? transactionId, WebhookCardData d)
         {
             string url = webhookUrlV2.TrimEnd('/');
             if (!url.EndsWith(SendIdentificationPath, StringComparison.OrdinalIgnoreCase))
                 url += SendIdentificationPath;
 
             // Webhook v2 trả về {status, msg, data}: status = 0 là thành công, khác 0 là thất bại kèm msg
-            await SendApiAsync(HttpMethod.Post, url, BuildIdentificationV2Body(sessionId, d), null, V2SuccessStatus);
+            await SendApiAsync(HttpMethod.Post, url, BuildIdentificationV2Body(transactionId, d), null, V2SuccessStatus,
+                transactionId, "transactionId");
         }
 
         /// <summary>Thông báo lỗi gửi webhook hiển thị cho người dùng.</summary>
@@ -152,11 +153,11 @@ namespace IdCard.Hanel
                 identity = dg13.PreviousNumber,
                 symbol = dg13.Character,
                 mrz = d.Card.Dg1File?.Mrz ?? "",
-                sodDg = d.Card.DSCert,
+                // SOD thô đọc từ chip (base64)
+                sodDg = d.Card.Sod is { Length: > 0 } sod ? Convert.ToBase64String(sod) : null,
                 nfcImg = Convert.ToBase64String(d.ChipFace),
                 faceImg = d.CamFace != null ? Convert.ToBase64String(d.CamFace) : "",
-                // Tạm thời chưa gửi các trường này
-                extraInfo = (string?)null,
+                extraInfo = BuildExtraInfo(d.Card),
                 ocrBackImg = (string?)null,
                 ocrFrontImg = (string?)null,
                 policyAgreement = new
@@ -167,11 +168,22 @@ namespace IdCard.Hanel
                     ip
                 },
                 phone = d.Phone,
-                mail = d.Email
+                email = d.Email
             };
         }
 
-        private static object BuildIdentificationV2Body(string? sessionId, WebhookCardData d)
+        private static string BuildExtraInfo(CardFullData card)
+        {
+            var info = new
+            {
+                dsCert = card.DSCert,
+                dg15File = card.Dg15 is { Length: > 0 } dg15 ? Convert.ToBase64String(dg15) : null
+            };
+            return JsonSerializer.Serialize(info, JsonWebOptions);
+        }
+
+        /// <summary>Body webhook v2: data.transactionId là mã nhận từ deep link hanelekyc://read?transactionId=...</summary>
+        private static object BuildIdentificationV2Body(string? transactionId, WebhookCardData d)
         {
             var dg13 = d.Card.Dg13File!;
             return new
@@ -180,7 +192,7 @@ namespace IdCard.Hanel
                 msg = (string?)null,
                 data = new
                 {
-                    sessionId = sessionId ?? Guid.NewGuid().ToString(),
+                    transactionId,
                     identification = dg13.DocumentNumber,
                     previousNumber = dg13.PreviousNumber,
                     name = dg13.Name,
@@ -207,7 +219,8 @@ namespace IdCard.Hanel
         /// Gọi API trả về dạng {status, data, msg}: status = <paramref name="successStatus"/> thì trả về data,
         /// ngược lại ném ApiException kèm msg.
         /// </summary>
-        private static async Task<JsonElement> SendApiAsync(HttpMethod method, string url, object? body, string? token, int successStatus)
+        private static async Task<JsonElement> SendApiAsync(HttpMethod method, string url, object? body, string? token, int successStatus,
+            string? sentId = null, string sentIdName = "sessionId")
         {
             using var request = new HttpRequestMessage(method, url)
             {
@@ -215,9 +228,9 @@ namespace IdCard.Hanel
             };
             if (token != null)
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
             using var response = await _http.SendAsync(request);
             string text = await response.Content.ReadAsStringAsync();
-            _log.Info($"{method} {url} ->{(int)response.StatusCode}: {(text.Length > 1000 ? text[..1000] + "..." : text)}");
 
             JsonElement root = default;
             bool isJson;
@@ -231,6 +244,8 @@ namespace IdCard.Hanel
             {
                 isJson = false;
             }
+
+            LogResponse(method, url, response, isJson ? root : null, sentId, sentIdName);
 
             bool ok = response.IsSuccessStatusCode && isJson && root.ValueKind == JsonValueKind.Object
                 && root.TryGetProperty("status", out var st) && st.ValueKind == JsonValueKind.Number
@@ -247,6 +262,39 @@ namespace IdCard.Hanel
                 throw new ApiException(serverMsg);
             response.EnsureSuccessStatusCode();
             throw new ApiException(isJson ? "Máy chủ trả về trạng thái thất bại." : "Phản hồi từ máy chủ không hợp lệ.");
+        }
+
+
+        private static readonly JsonSerializerOptions JsonWebOptions = new(JsonSerializerDefaults.Web);
+
+        private static void LogResponse(HttpMethod method, string url, HttpResponseMessage response, JsonElement? root,
+            string? sentId, string sentIdName)
+        {
+            string sentPart = sentId != null ? $" | {sentIdName} gửi={sentId}" : "";
+            // Bỏ query string (sessionId đã ghi riêng)
+            int q = url.IndexOf('?');
+            var sb = new StringBuilder($"{method} {(q >= 0 ? url[..q] : url)} ->{(int)response.StatusCode}");
+            if (root is { ValueKind: JsonValueKind.Object } r)
+            {
+                string? Field(JsonElement e, string name) =>
+                    e.TryGetProperty(name, out var v) && v.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined)
+                        ? (v.ValueKind == JsonValueKind.String ? v.GetString() : v.GetRawText()) : null;
+
+                sb.Append($" status={Field(r, "status")}");
+                if (Field(r, "msg") is { Length: > 0 } msg)
+                    sb.Append($" msg={msg}");
+                if (Field(r, "errorCode") is { Length: > 0 } err)
+                    sb.Append($" errorCode={err}");
+                sb.Append(sentPart);
+                if (r.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Object && Field(data, "sessionId") is { } returned)
+                    sb.Append($" | sessionId trả về={returned}");
+            }
+            else
+            {
+                sb.Append(sentPart);
+                sb.Append(" (phản hồi không phải JSON)");
+            }
+            _log.Info(sb.ToString());
         }
 
         /// <summary>Thông báo trong response: lấy trường msg, không có thì message / error.</summary>

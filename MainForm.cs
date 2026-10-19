@@ -95,11 +95,26 @@ namespace IdCard.Hanel
                 case "read":
                     // Xoá dữ liệu lần đọc trước để sẵn sàng đọc thẻ mới
                     ResetFormInfo();
+                    _transactionId = ParseTransactionId(req.Get("transactionId"));
+                    WriteLog($"DeepLink: transactionId={_transactionId ?? "(null)"}");
                     break;
                 default:
                     WriteLog($"DeepLink: action không hỗ trợ '{req.Action}'");
                     break;
             }
+        }
+
+        private string? _transactionId;
+
+        private string? ParseTransactionId(string? value)
+        {
+            value = value?.Trim();
+            if (string.IsNullOrEmpty(value))
+                return null;
+            else
+                return value;
+            WriteLog($"DeepLink: transactionId không hợp lệ, bỏ qua: {value}");
+            return null;
         }
 
         private void BringToFrontWindow()
@@ -1016,8 +1031,8 @@ namespace IdCard.Hanel
                 {
                     try
                     {
-                        await WebhookClient.SendIdentificationV2Async(_settings.WebhookUrlV2, sessionId, cardData);
-                        WriteLog($"SendIdentificationV2: sessionId={sessionId}");
+                        await WebhookClient.SendIdentificationV2Async(_settings.WebhookUrlV2, _transactionId, cardData);
+                        WriteLog($"SendIdentificationV2: transactionId={_transactionId ?? "(không có)"}");
                     }
                     catch (Exception ex)
                     {
