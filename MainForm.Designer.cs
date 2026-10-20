@@ -1751,7 +1751,6 @@
                         lblCapEmail.Name = "lblCapEmail";
             lblCapEmail.TabIndex = 46;
             lblCapEmail.Text = "Email";
-            lblCapEmail.Suffix = " *";
             //
             // inpEmail
             //

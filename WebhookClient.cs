@@ -168,7 +168,7 @@ namespace IdCard.Hanel
                     ip
                 },
                 phone = d.Phone,
-                email = d.Email
+                email = string.IsNullOrWhiteSpace(d.Email) ? ValidationConstants.DefaultEmail : d.Email
             };
         }
 

@@ -979,7 +979,7 @@ namespace IdCard.Hanel
                 MessageBox.Show("Chưa cấu hình Webhook URL hoặc tài khoản.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
-            // SĐT, email và đồng ý chính sách bắt buộc: thiếu thì dừng, nhập xong bấm Gửi để gửi lại
+            // SĐT và đồng ý chính sách bắt buộc, email có nhập thì phải đúng định dạng: lỗi thì dừng, sửa xong bấm Gửi để gửi lại
             string? phoneErr = ValidatePhone();
             string? emailErr = ValidateEmail();
             string? consentErr = chkConsent.Checked ? null : ValidationConstants.ConsentRequired;
@@ -1220,9 +1220,9 @@ namespace IdCard.Hanel
             Phone.Length == 0 ? ValidationConstants.PhoneRequired
             : PhoneRegex.IsMatch(Phone) ? null : ValidationConstants.PhoneInvalid;
 
+        /// <summary>Email không bắt buộc: để trống thì hợp lệ (gửi email mặc định), có nhập thì phải đúng định dạng.</summary>
         private string? ValidateEmail() =>
-            Email.Length == 0 ? ValidationConstants.EmailRequired
-            : EmailRegex.IsMatch(Email) ? null : ValidationConstants.EmailInvalid;
+            Email.Length == 0 || EmailRegex.IsMatch(Email) ? null : ValidationConstants.EmailInvalid;
 
         private void ResetPortrait()
         {
