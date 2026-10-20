@@ -95,26 +95,11 @@ namespace IdCard.Hanel
                 case "read":
                     // Xoá dữ liệu lần đọc trước để sẵn sàng đọc thẻ mới
                     ResetFormInfo();
-                    _transactionId = ParseTransactionId(req.Get("transactionId"));
-                    WriteLog($"DeepLink: transactionId={_transactionId ?? "(null)"}");
                     break;
                 default:
                     WriteLog($"DeepLink: action không hỗ trợ '{req.Action}'");
                     break;
             }
-        }
-
-        private string? _transactionId;
-
-        private string? ParseTransactionId(string? value)
-        {
-            value = value?.Trim();
-            if (string.IsNullOrEmpty(value))
-                return null;
-            else
-                return value;
-            WriteLog($"DeepLink: transactionId không hợp lệ, bỏ qua: {value}");
-            return null;
         }
 
         private void BringToFrontWindow()
@@ -166,7 +151,6 @@ namespace IdCard.Hanel
             tlpInfo.RowStyles[0].Height = S(shortH ? 30 : 40);
             tlpInfo.RowStyles[6].Height = S(shortH ? 30 : 40);
             tlpInfo.ColumnStyles[0].Width = S(narrow ? 190 : 240);
-            tlpFields.RowStyles[0].Height = S(shortH ? 30 : 40);
             tlpFields.RowStyles[2].Height = S(shortH ? 30 : 36);
             tlpFields.RowStyles[3].Height = S(shortH ? 30 : 40);
             tlpFields.ColumnStyles[0].Width = S(narrow ? 130 : 160);
@@ -972,23 +956,16 @@ namespace IdCard.Hanel
                 MessageBox.Show("Vui lòng đọc thẻ CCCD trước khi gửi!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
-            bool hasV1 = !string.IsNullOrWhiteSpace(_settings.WebhookUrl) && !string.IsNullOrEmpty(_settings.WebhookUser);
-            bool hasV2 = !string.IsNullOrWhiteSpace(_settings.WebhookUrlV2);
-            if (!hasV1 && !hasV2)
+            if (string.IsNullOrWhiteSpace(_settings.WebhookUrl) || string.IsNullOrEmpty(_settings.WebhookUser))
             {
                 MessageBox.Show("Chưa cấu hình Webhook URL hoặc tài khoản.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
-            // SĐT, email và đồng ý chính sách bắt buộc: thiếu thì dừng, nhập xong bấm Gửi để gửi lại
-            string? phoneErr = ValidatePhone();
-            string? emailErr = ValidateEmail();
-            string? consentErr = chkConsent.Checked ? null : ValidationConstants.ConsentRequired;
-            var inputErrors = new[] { phoneErr, emailErr, consentErr }.Where(x => x != null).ToList();
-            if (inputErrors.Count > 0)
+            // Đồng ý chính sách bắt buộc: chưa tích thì dừng, tích xong bấm Gửi để gửi lại
+            if (!chkConsent.Checked)
             {
-                MessageBox.Show(string.Join("\n", inputErrors), "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                Control first = phoneErr != null ? inpPhone : emailErr != null ? inpEmail : chkConsent;
-                first.Focus();
+                MessageBox.Show(ValidationConstants.ConsentRequired, "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                chkConsent.Focus();
                 return;
             }
 
@@ -1005,83 +982,33 @@ namespace IdCard.Hanel
             btnSend.Enabled = false;
             btnSend.Text = "ĐANG GỬI...";
             SetStatusMessage("ĐANG GỬI THÔNG TIN...", Theme.Info, true);
-            var errors = new List<string>();
-            var cardData = new WebhookCardData(_cardData!, _ChipFaceBts!,_CamFaceBts, _ocrFrontBts, _ocrBackBts, _readerSerial, Phone, Email);
-            string? sessionId = null;
-            string? v1Token = null;
+            var cardData = new WebhookCardData(_cardData!, _ChipFaceBts!, _CamFaceBts, _ocrFrontBts, _ocrBackBts, _readerSerial);
             try
             {
-                if (hasV1)
-                {
-                    try
-                    {
-                        var (requestId, sid, token) = await WebhookClient.SendNfcInfoAsync(
-                            _settings.WebhookUrl, _settings.WebhookUser, _settings.GetWebhookPassword(), _settings.Username, cardData);
-                        sessionId = sid;
-                        v1Token = token;
-                        WriteLog($"SendNfcInfo: requestId={requestId}, sessionId={sessionId}");
-                    }
-                    catch (Exception ex)
-                    {
-                        WriteLog($"SendNfcInfo: {ex}");
-                        errors.Add((hasV2 ? "Webhook: " : "") + WebhookClient.DescribeSendError(ex));
-                    }
-                }
-                if (hasV2)
-                {
-                    try
-                    {
-                        await WebhookClient.SendIdentificationV2Async(_settings.WebhookUrlV2, _transactionId, cardData);
-                        WriteLog($"SendIdentificationV2: transactionId={_transactionId ?? "(không có)"}");
-                    }
-                    catch (Exception ex)
-                    {
-                        WriteLog($"SendIdentificationV2: {ex}");
-                        //errors.Add((hasV1 ? "Webhook v2: " : "") + WebhookClient.DescribeSendError(ex));
-                    }
-                }
+                var (requestId, sessionId) = await WebhookClient.SendNfcInfoAsync(
+                    _settings.WebhookUrl, _settings.WebhookUser, _settings.GetWebhookPassword(), cardData);
+                WriteLog($"SendNfcInfo: requestId={requestId}, sessionId={sessionId}");
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"SendNfcInfo: {ex}");
+                SetStatusMessage("GỬI THẤT BẠI", Theme.Danger, false);
+                MessageBox.Show("Gửi thông tin thất bại:\n" + WebhookClient.DescribeSendError(ex), "Thông báo lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
             }
             finally
             {
                 _sending = false;
                 btnSend.Enabled = true;
-                btnSend.Text = "ĐĂNG KÝ CHỨNG THƯ SỐ";
+                btnSend.Text = "GỬI THÔNG TIN";
             }
 
-            if (errors.Count > 0)
-            {
-                SetStatusMessage("GỬI THẤT BẠI", Theme.Danger, false);
-                MessageBox.Show("Gửi thông tin thất bại:\n" + string.Join("\n", errors), "Thông báo lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
-            SetStatusMessage("GỬI THÀNH CÔNG", Theme.Success, false);
-            if (sessionId != null && v1Token != null)
-            {
-                // Webhook v1 thành công: hiển thị thông tin đăng ký, xem phiếu đăng ký và ký tay
-                var dg = _cardData!.Dg13File!;
-                var customer = new RegisterCustomerInfo(dg.Name, dg.DocumentNumber, dg.DateOfBirth, dg.Sex, dg.IssueDate, dg.Hometown, dg.Address);
-                using var registerForm = new RegisterInfoForm(customer, _settings.WebhookUrl, v1Token, sessionId);
-                if (registerForm.ShowDialog(this) == DialogResult.OK)
-                {
-                    // Đăng ký chứng thư số thành công: báo người dùng, bấm OK hoặc sau 2 giây thì tự đóng tool
-                    WriteLog("Đăng ký chứng thư số thành công, tự động đóng ứng dụng.");
-                    AutoCloseMessageBox.Show(this, "Đăng ký chứng thư số thành công.", "Thông báo", TimeSpan.FromSeconds(2));
-                    Close();
-                    return;
-                }
-            }
-            if (hasV1 && hasV2)
-            {
-                // Gửi thành công cả 2 luồng (webhook + webhook v2) thì tự động đóng tool
-                WriteLog("Gửi thành công cả 2 luồng, tự động đóng ứng dụng.");
-                await Task.Delay(1500);
-                Close();
-            }
-            else if (sessionId == null || v1Token == null)
-            {
-                MessageBox.Show("Gửi thành công.", "Kết quả gửi", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
+            // Gửi thành công: báo người dùng (bấm OK hoặc sau 2 giây tự tắt) rồi xoá form để đọc thẻ người tiếp theo
+            AutoCloseMessageBox.Show(this, "Gửi thông tin thành công.", "Thông báo", TimeSpan.FromSeconds(2));
+            ResetFormInfo();
+            ResetPortrait();
+            chkConsent.Checked = false;
+            SetStatusMessage("CHỜ CẮM THẺ...", Theme.Navy, true);
         }
 
         private void chkAutoRead_CheckedChanged(object sender, EventArgs e)
@@ -1196,33 +1123,6 @@ namespace IdCard.Hanel
             //// Ngón thu thành công được lưu ngay, nên giữ lại kể cả khi đóng form bằng Hủy
             //_fingers = dlg.Fingers;
         }
-
-        private static readonly Regex PhoneRegex = new(ValidationConstants.PhonePattern);
-        private static readonly Regex EmailRegex = new(ValidationConstants.EmailPattern);
-
-        /// <summary>Số điện thoại đã nhập (đã bỏ khoảng trắng), rỗng nếu chưa nhập.</summary>
-        private string Phone => inpPhone.Text.Trim();
-        /// <summary>Email đã nhập (đã bỏ khoảng trắng), rỗng nếu chưa nhập.</summary>
-        private string Email => inpEmail.Text.Trim();
-
-        private void inpPhone_KeyPress(object? sender, KeyPressEventArgs e)
-        {
-            // Chỉ cho nhập số, dấu + chỉ ở đầu
-            if (char.IsControl(e.KeyChar) || char.IsDigit(e.KeyChar))
-                return;
-            if (e.KeyChar == '+' && inpPhone.SelectionStart == 0 && !inpPhone.Text.Contains('+'))
-                return;
-            e.Handled = true;
-        }
-
-        /// <summary>Kiểm tra khi bấm Gửi, lỗi báo bằng hộp thoại. Trả về thông báo lỗi, null nếu hợp lệ.</summary>
-        private string? ValidatePhone() =>
-            Phone.Length == 0 ? ValidationConstants.PhoneRequired
-            : PhoneRegex.IsMatch(Phone) ? null : ValidationConstants.PhoneInvalid;
-
-        private string? ValidateEmail() =>
-            Email.Length == 0 ? ValidationConstants.EmailRequired
-            : EmailRegex.IsMatch(Email) ? null : ValidationConstants.EmailInvalid;
 
         private void ResetPortrait()
         {

@@ -29,9 +29,6 @@ namespace IdCard.Hanel
         public int CaptureFaceTimeoutMs { get; set; } = 10000;
         /// <summary>Đường dẫn exe đã được tạo shortcut ngoài Desktop (xem DesktopShortcut).</summary>
         public string DesktopShortcutExePath { get; set; } = "";
-        /// <summary>Webhook v2 nhận thông tin CCCD (/api/webhook/send-identification), chỉ lấy từ .env.</summary>
-        [System.Text.Json.Serialization.JsonIgnore]
-        public string WebhookUrlV2 { get; private set; } = "";
         /// <summary>Username tài khoản đại lý cấp cho bệnh viện gửi trong NFCInfo, chỉ lấy từ .env.</summary>
         [System.Text.Json.Serialization.JsonIgnore]
         public string Username { get; private set; } = "";
@@ -117,7 +114,6 @@ namespace IdCard.Hanel
                 if (env.TryGetValue("WEBHOOK_URL", out var url)) WebhookUrl = url;
                 if (env.TryGetValue("WEBHOOK_USER", out var user)) WebhookUser = user;
                 if (env.TryGetValue("WEBHOOK_PASSWORD", out var pwd) && pwd.Length > 0) _defaultPassword = pwd;
-                if (env.TryGetValue("WEBHOOK_URL_V2", out var urlV2)) WebhookUrlV2 = urlV2;
                 if (env.TryGetValue("USERNAME", out var username)) Username = username;
                 if (env.TryGetValue("AUTO_COMPARE_FACE", out var auto) && bool.TryParse(auto, out var autoVal)) AutoCompareFace = autoVal;
                 if (env.TryGetValue("FACE_MATCH_THRESHOLD", out var th) && int.TryParse(th, out var thVal)) FaceMatchThreshold = thVal;
