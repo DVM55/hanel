@@ -1037,7 +1037,7 @@ namespace IdCard.Hanel
                     catch (Exception ex)
                     {
                         WriteLog($"SendIdentificationV2: {ex}");
-                        //errors.Add((hasV1 ? "Webhook v2: " : "") + WebhookClient.DescribeSendError(ex));
+                        errors.Add((hasV1 ? "Webhook v2: " : "") + WebhookClient.DescribeSendError(ex));
                     }
                 }
             }
