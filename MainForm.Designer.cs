@@ -152,8 +152,13 @@
             lblCapMother = new Label();
             txtMotherName = new FieldLabel();
             lblCapPartner = new Label();
+            lblSecExtra = new SuffixLabel();
             chkConsent = new ConsentCheck();
             lblSecCollected = new SuffixLabel();
+            lblCapPhone = new SuffixLabel();
+            inpPhone = new InputBox();
+            lblCapEmail = new SuffixLabel();
+            inpEmail = new InputBox();
             txtPartnerName = new FieldLabel();
             pnlTop.SuspendLayout();
             tlpToolbar.SuspendLayout();
@@ -1124,7 +1129,7 @@
             btnSend.Name = "btnSend";
             btnSend.Size = new Size(250, 44);
             btnSend.TabIndex = 2;
-            btnSend.Text = "GỬI THÔNG TIN";
+            btnSend.Text = "ĐĂNG KÝ CHỨNG THƯ SỐ";
             btnSend.UseVisualStyleBackColor = false;
             btnSend.Click += btnSend_Click;
             //
@@ -1231,8 +1236,13 @@
             tlpFields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 36F));
             tlpFields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160F));
             tlpFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            tlpFields.Controls.Add(lblSecExtra, 0, 0);
             tlpFields.Controls.Add(lblSecCollected, 0, 3);
             tlpFields.Controls.Add(chkConsent, 0, 2);
+            tlpFields.Controls.Add(lblCapPhone, 0, 1);
+            tlpFields.Controls.Add(inpPhone, 1, 1);
+            tlpFields.Controls.Add(lblCapEmail, 3, 1);
+            tlpFields.Controls.Add(inpEmail, 4, 1);
             tlpFields.Controls.Add(lblCapDocNumber, 0, 4);
             tlpFields.Controls.Add(txtDocumentNumber, 1, 4);
             tlpFields.Controls.Add(lblCapPrevNumber, 3, 4);
@@ -1269,8 +1279,8 @@
             tlpFields.Margin = new Padding(0);
             tlpFields.Name = "tlpFields";
             tlpFields.RowCount = 15;
-            tlpFields.RowStyles.Add(new RowStyle(SizeType.Absolute, 0F));
-            tlpFields.RowStyles.Add(new RowStyle(SizeType.Absolute, 0F));
+            tlpFields.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F));
+            tlpFields.RowStyles.Add(new RowStyle(SizeType.Percent, 10F));
             tlpFields.RowStyles.Add(new RowStyle(SizeType.Absolute, 36F));
             tlpFields.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F));
             tlpFields.RowStyles.Add(new RowStyle(SizeType.Percent, 10F));
@@ -1284,6 +1294,7 @@
             tlpFields.RowStyles.Add(new RowStyle(SizeType.Percent, 10F));
             tlpFields.RowStyles.Add(new RowStyle(SizeType.Percent, 10F));
             tlpFields.RowStyles.Add(new RowStyle(SizeType.Percent, 10F));
+            tlpFields.SetColumnSpan(lblSecExtra, 5);
             tlpFields.SetColumnSpan(lblSecCollected, 5);
             tlpFields.SetColumnSpan(chkConsent, 5);
             tlpFields.SetColumnSpan(txtCharacter, 4);
@@ -1678,6 +1689,17 @@
             txtPartnerName.Name = "txtPartnerName";
             txtPartnerName.TabIndex = 43;
             //
+            // lblSecExtra
+            //
+            lblSecExtra.Dock = DockStyle.Fill;
+            lblSecExtra.Font = new Font("Segoe UI", 13F, FontStyle.Bold, GraphicsUnit.Point);
+            lblSecExtra.ForeColor = Color.FromArgb(11, 59, 102);
+            lblSecExtra.Heading = true;
+            lblSecExtra.Margin = new Padding(0);
+            lblSecExtra.Name = "lblSecExtra";
+            lblSecExtra.TabIndex = 48;
+            lblSecExtra.Text = "THÔNG TIN BỔ SUNG";
+            //
             // chkConsent
             //
             chkConsent.Dock = DockStyle.Fill;
@@ -1697,6 +1719,49 @@
             lblSecCollected.Name = "lblSecCollected";
             lblSecCollected.TabIndex = 49;
             lblSecCollected.Text = "THÔNG TIN THU THẬP";
+            //
+            // lblCapPhone
+            //
+            lblCapPhone.AutoEllipsis = true;
+            lblCapPhone.Dock = DockStyle.Fill;
+            lblCapPhone.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
+            lblCapPhone.ForeColor = Color.FromArgb(21, 101, 192);
+                        lblCapPhone.Name = "lblCapPhone";
+            lblCapPhone.TabIndex = 44;
+            lblCapPhone.Text = "Số điện thoại";
+            lblCapPhone.Suffix = " *";
+            //
+            // inpPhone
+            //
+            inpPhone.Dock = DockStyle.Fill;
+            inpPhone.Font = new Font("Segoe UI", 11.25F, FontStyle.Regular, GraphicsUnit.Point);
+            inpPhone.Margin = new Padding(0, 7, 0, 7);
+            inpPhone.MaxLength = 12;
+            inpPhone.Name = "inpPhone";
+            inpPhone.Placeholder = "Nhập số điện thoại";
+            inpPhone.TabIndex = 45;
+            inpPhone.KeyPress += inpPhone_KeyPress;
+            //
+            // lblCapEmail
+            //
+            lblCapEmail.AutoEllipsis = true;
+            lblCapEmail.Dock = DockStyle.Fill;
+            lblCapEmail.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
+            lblCapEmail.ForeColor = Color.FromArgb(21, 101, 192);
+                        lblCapEmail.Name = "lblCapEmail";
+            lblCapEmail.TabIndex = 46;
+            lblCapEmail.Text = "Email";
+            lblCapEmail.Suffix = " *";
+            //
+            // inpEmail
+            //
+            inpEmail.Dock = DockStyle.Fill;
+            inpEmail.Font = new Font("Segoe UI", 11.25F, FontStyle.Regular, GraphicsUnit.Point);
+            inpEmail.Margin = new Padding(0, 7, 0, 7);
+            inpEmail.MaxLength = 100;
+            inpEmail.Name = "inpEmail";
+            inpEmail.Placeholder = "Nhập địa chỉ email";
+            inpEmail.TabIndex = 47;
             //
             // MainForm
             //
@@ -1870,8 +1935,13 @@
         private Label lblCapMother;
         private FieldLabel txtMotherName;
         private Label lblCapPartner;
+        private SuffixLabel lblSecExtra;
         private ConsentCheck chkConsent;
         private SuffixLabel lblSecCollected;
+        private SuffixLabel lblCapPhone;
+        private InputBox inpPhone;
+        private SuffixLabel lblCapEmail;
+        private InputBox inpEmail;
         private FieldLabel txtPartnerName;
     }
 }

@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <PackageReference Include="DirectShowLib.Standard" Version="2.1.0" />
+    <PackageReference Include="Docnet.Core" Version="2.6.0" />
     <PackageReference Include="log4net" Version="2.0.15" />
     <PackageReference Include="OpenCvSharp4" Version="4.8.0.20230708" />
     <PackageReference Include="OpenCvSharp4.Extensions" Version="4.8.0.20230708" />
