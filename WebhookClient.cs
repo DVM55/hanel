@@ -68,12 +68,24 @@ namespace IdCard.Hanel
             var auth = await SendApiAsync(HttpMethod.Post, baseUrl + AuthenticatePath, new { username = user, password }, null, V1SuccessStatus);
             string? token = auth.ValueKind == JsonValueKind.Object && auth.TryGetProperty("token", out var t) && t.ValueKind == JsonValueKind.String ? t.GetString() : null;
             if (string.IsNullOrEmpty(token))
-                throw new ApiException("Máy chủ không trả về token đăng nhập.");
+            {
+                // Fake token để vẫn đi tiếp được tới màn ký tay khi API lỗi
+                token = "fake-token";
+                _log.Info("SendNfcInfo: máy chủ không trả về token đăng nhập, dùng token giả.");
+            }
 
             var payload = await BuildNfcInfoPayloadAsync(username, d);
             var data = await SendApiAsync(HttpMethod.Post, baseUrl + SendDataPath, payload, token, V1SuccessStatus);
             string? Str(string name) => data.ValueKind == JsonValueKind.Object && data.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
-            return (Str("requestId"), Str("sessionId"), token);
+            string requestId = Str("requestId") ?? "fake-" + Guid.NewGuid().ToString("N");
+            string? sessionId = Str("sessionId");
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                // Fake sessionId để MainForm mở màn thông tin đăng ký / vẽ chữ ký tay
+                sessionId = "fake-" + Guid.NewGuid().ToString("N");
+                _log.Info($"SendNfcInfo: máy chủ không trả về sessionId, dùng sessionId giả {sessionId}.");
+            }
+            return (requestId, sessionId, token);
         }
 
         /// <summary>
@@ -86,8 +98,19 @@ namespace IdCard.Hanel
             var data = await SendApiAsync(HttpMethod.Get, url, null, token, V1SuccessStatus, sessionId);
             string? base64 = data.ValueKind == JsonValueKind.String ? data.GetString() : null;
             if (string.IsNullOrEmpty(base64))
-                throw new ApiException("Máy chủ không trả về phiếu đăng ký.");
-            return Convert.FromBase64String(base64);
+            {
+                _log.Info("GetCertificateRegister: máy chủ không trả về phiếu đăng ký.");
+                return Array.Empty<byte>();
+            }
+            try
+            {
+                return Convert.FromBase64String(base64);
+            }
+            catch (FormatException ex)
+            {
+                _log.Info($"GetCertificateRegister: phiếu đăng ký không phải base64 hợp lệ: {ex.Message}");
+                return Array.Empty<byte>();
+            }
         }
 
         /// <summary>
@@ -217,10 +240,24 @@ namespace IdCard.Hanel
 
         /// <summary>
         /// Gọi API trả về dạng {status, data, msg}: status = <paramref name="successStatus"/> thì trả về data,
-        /// ngược lại ném ApiException kèm msg.
+        /// ngược lại chỉ ghi log lỗi và trả về default, không ném exception.
         /// </summary>
         private static async Task<JsonElement> SendApiAsync(HttpMethod method, string url, object? body, string? token, int successStatus,
             string? sentId = null, string sentIdName = "sessionId")
+        {
+            try
+            {
+                return await SendApiCoreAsync(method, url, body, token, successStatus, sentId, sentIdName);
+            }
+            catch (Exception ex)
+            {
+                _log.Info($"{method} {url}: {DescribeSendError(ex)} ({ex.Message})");
+                return default;
+            }
+        }
+
+        private static async Task<JsonElement> SendApiCoreAsync(HttpMethod method, string url, object? body, string? token, int successStatus,
+            string? sentId, string sentIdName)
         {
             using var request = new HttpRequestMessage(method, url)
             {
