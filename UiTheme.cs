@@ -604,6 +604,15 @@ namespace IdCard.Hanel
         [Category("Appearance")]
         public Color HighlightColor { get; set; } = Theme.Danger;
 
+        /// <summary>Màu nền ô tích khi đã chọn (và viền khi rê chuột).</summary>
+        [Category("Appearance")]
+        public Color CheckColor { get; set; } = Theme.Primary;
+
+        /// <summary>Cạnh ô tích (px ở 96 DPI).</summary>
+        [DefaultValue(20)]
+        [Category("Appearance")]
+        public int BoxSize { get; set; } = 20;
+
         /// <summary>Bấm vào đoạn [ ] đầu tiên của Text (chỉ là liên kết khi có đăng ký sự kiện này).</summary>
         public event EventHandler? LinkClicked;
 
@@ -659,14 +668,14 @@ namespace IdCard.Hanel
             g.SmoothingMode = SmoothingMode.AntiAlias;
             float k = DeviceDpi / 96f;
 
-            float d = 20 * k;
-            var box = new RectangleF(1 * k, (Height - d) / 2f, d, d);
+            float d = BoxSize * k;
+            var box = new RectangleF(Padding.Left + 1 * k, (Height - d) / 2f, d, d);
             using (var path = Theme.RoundedRect(box, 4 * k))
             {
                 if (_checked)
                 {
-                    using (var fill = new SolidBrush(Theme.Primary)) g.FillPath(fill, path);
-                    using var tick = new Pen(Color.White, 2.2f * k) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
+                    using (var fill = new SolidBrush(CheckColor)) g.FillPath(fill, path);
+                    using var tick = new Pen(Color.White, 2.2f * k * BoxSize / 20f) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
                     g.DrawLines(tick, new[]
                     {
                         new PointF(box.X + d * 0.24f, box.Y + d * 0.52f),
@@ -677,7 +686,7 @@ namespace IdCard.Hanel
                 else
                 {
                     using (var fill = new SolidBrush(Color.White)) g.FillPath(fill, path);
-                    Color border = _invalid ? Theme.Danger : (_hover || Focused) ? Theme.Primary : Color.FromArgb(148, 163, 184);
+                    Color border = _invalid ? Theme.Danger : (_hover || Focused) ? CheckColor : Color.FromArgb(148, 163, 184);
                     using var pen = new Pen(border, (_invalid ? 2f : 1.5f) * k);
                     g.DrawPath(pen, path);
                 }
